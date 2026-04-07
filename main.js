@@ -14,6 +14,11 @@ function supportLanguages() {
 function getApiUrl() {
     var base = readOption('apiUrl') || 'https://api.openai.com';
     base = base.replace(/\/+$/, '');
+    // If URL already ends with the speech endpoint, use as-is
+    if (base.endsWith('/v1/audio/speech')) {
+        return base;
+    }
+    // If URL contains the speech endpoint path, assume it's complete
     if (base.indexOf('/v1/audio/speech') !== -1) {
         return base;
     }
@@ -59,7 +64,12 @@ function tts(query, completion) {
 
     var model = readOption('model');
     var voice = getVoice();
-    var speed = parseFloat(readOption('speed')) || 1.0;
+    var speedStr = readOption('speed');
+    var speed = parseFloat(speedStr);
+    // Validate speed is within valid range (0.25 to 4.0 per OpenAI API)
+    if (isNaN(speed) || speed < 0.25 || speed > 4.0) {
+        speed = 1.0;
+    }
     var format = readOption('responseFormat') || 'mp3';
     var instructions = readOption('instructions');
 
@@ -126,13 +136,15 @@ function readOption(name) {
 }
 
 function validateOptions() {
-    if (!readOption('apiKey')) {
+    var apiKey = readOption('apiKey');
+    if (!apiKey || apiKey.length === 0) {
         return { type: 'param', message: '请先在插件设置中填写 OpenAI API Key。' };
     }
     if (!readOption('model')) {
         return { type: 'param', message: '请先填写 TTS 模型 ID。' };
     }
-    if (!getVoice()) {
+    var voice = getVoice();
+    if (!voice || voice.length === 0) {
         return { type: 'param', message: '请先在插件设置中选择音色。' };
     }
     return null;
@@ -144,10 +156,12 @@ function parseHttpError(resp) {
 
     try {
         var body = resp.data;
-        if (body && body.error && body.error.message) {
-            apiMessage = body.error.message;
+        if (body && typeof body === 'object' && body.error && body.error.message) {
+            apiMessage = String(body.error.message);
         }
-    } catch (e) {}
+    } catch (e) {
+        // Failed to parse error message, continue with generic message
+    }
 
     var context = '';
     if (statusCode === 401) {
