@@ -31,7 +31,33 @@ function pluginValidate(completion) {
         completion({ error: error });
         return;
     }
-    completion({ result: true });
+
+    $http.request({
+        method: 'POST',
+        url: getApiUrl(),
+        header: {
+            Authorization: 'Bearer ' + readOption('apiKey'),
+            'Content-Type': 'application/json'
+        },
+        body: {
+            model: readOption('model'),
+            input: 'hi',
+            voice: getVoice(),
+            response_format: 'mp3'
+        },
+        timeout: 15,
+        handler: function(resp) {
+            if (resp.error) {
+                completion({ error: toServiceError(resp.error) });
+                return;
+            }
+            if (resp.response && resp.response.statusCode >= 400) {
+                completion({ error: parseHttpError(resp) });
+                return;
+            }
+            completion({ result: true });
+        }
+    });
 }
 
 function tts(query, completion) {

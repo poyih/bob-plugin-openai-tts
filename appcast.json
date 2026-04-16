@@ -2,6 +2,14 @@
   "identifier": "bob-plugin-openai-tts",
   "versions": [
     {
+      "version": "1.1.0",
+      "desc": "验证按钮现在会真正调用 API 检测配置是否有效。",
+      "sha256": "00074e76233a47f87dac7c012d8b32c71c00c6067a596ae6e4b2d638d37eccde",
+      "url": "https://github.com/poyih/bob-plugin-openai-tts/releases/download/v1.1.0/openai-tts-1.1.0.bobplugin",
+      "minBobVersion": "1.8.0",
+      "timestamp": 1744761600000
+    },
+    {
       "version": "1.0.0",
       "desc": "支持自定义 API 地址、音频格式选择，改进错误提示，优化代码结构。",
       "sha256": "e2940b0723ec5e24f5191b4fd7aa66c359b0c4d5112df7e7630f8326583084d8",
