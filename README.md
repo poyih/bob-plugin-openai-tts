@@ -1,6 +1,6 @@
 # Bob Plugin - OpenAI TTS
 
-[Bob](https://bobtranslate.com/) 的 OpenAI TTS 语音合成插件，支持 `tts-1`、`tts-1-hd` 和 `gpt-4o-mini-tts` 模型。
+[Bob](https://bobtranslate.com/) 的 TTS 语音合成插件，兼容 OpenAI 和 OpenRouter，支持 `tts-1`、`tts-1-hd`、`gpt-4o-mini-tts` 及其快照模型。
 
 ## 安装
 
@@ -13,19 +13,33 @@
 
 | 选项 | 说明 |
 | --- | --- |
-| **OpenAI API Key** | 你的 OpenAI API 密钥 |
+| **API Key** | 你的 OpenAI 或 OpenRouter API 密钥 |
 | **API URL** | 自定义 API 地址，用于代理或兼容服务（默认 `https://api.openai.com`） |
-| **Model** | TTS 模型：`tts-1`、`tts-1-hd`、`gpt-4o-mini-tts` |
+| **Model** | 常用 TTS 模型预设：`tts-1`、`tts-1-hd`、`gpt-4o-mini-tts` |
+| **Custom Model ID** | 可选。填写完整模型 ID 时，会覆盖上方预设，适合 OpenRouter 等兼容服务 |
 | **Voice (tts-1 / tts-1-hd)** | 音色：alloy、echo、fable、onyx、nova、shimmer |
-| **Voice (gpt-4o-mini-tts)** | 音色：alloy、ash、ballad、cedar、coral、echo、fable、marin、onyx、nova、sage、shimmer、verse |
+| **Voice (gpt-4o-mini-tts family)** | 音色：alloy、ash、ballad、cedar、coral、echo、fable、marin、onyx、nova、sage、shimmer、verse |
 | **Speed** | 语速：0.5x ~ 2.0x |
 | **Audio Format** | 音频格式：MP3（默认）、AAC、OPUS、FLAC |
-| **Instructions** | 控制语音风格、语气、情感（仅 `gpt-4o-mini-tts` 支持） |
+| **Instructions** | 控制语音风格、语气、情感（`gpt-4o-mini-tts` 系列模型支持） |
+
+## OpenRouter 配置示例
+
+如需使用 OpenRouter 上架的 `openai/gpt-4o-mini-tts-2025-12-15`：
+
+| 选项 | 值 |
+| --- | --- |
+| **API Key** | 你的 OpenRouter API Key |
+| **API URL** | `https://openrouter.ai`、`https://openrouter.ai/api`、`https://openrouter.ai/api/v1` 或完整 `https://openrouter.ai/api/v1/tts` |
+| **Model** | `gpt-4o-mini-tts` 或任意预设 |
+| **Custom Model ID** | `openai/gpt-4o-mini-tts-2025-12-15` |
 
 ## 注意事项
 
 - 单次合成文本长度不能超过 4096 个字符。
-- API URL 支持填写完整地址（如 `https://your-proxy.com/v1/audio/speech`）或仅填写域名（如 `https://your-proxy.com`），插件会自动补全路径。
+- OpenAI 兼容地址会自动补全到 `/v1/audio/speech`；OpenRouter 地址会自动补全到 `/api/v1/tts`。
+- API URL 支持填写完整地址（如 `https://your-proxy.com/v1/audio/speech` 或 `https://openrouter.ai/api/v1/tts`）、`/v1` 基地址，或仅填写域名。
+- `gpt-4o-mini-tts` 的快照模型和 OpenRouter 命名空间模型会自动复用同一套音色与 `Instructions` 逻辑。
 
 ## 支持的语言
 

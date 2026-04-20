@@ -11,18 +11,51 @@ function supportLanguages() {
     return supportedLanguageCodes.slice();
 }
 
+function isOpenRouterBaseUrl(base) {
+    return /^https?:\/\/(?:[^\/]+\.)?openrouter\.ai(?:\/|$)/i.test(base);
+}
+
+function getModel() {
+    var customModel = readOption('customModel');
+    if (customModel) {
+        return customModel;
+    }
+
+    var preset = readOption('model');
+    return preset === 'custom' ? '' : preset;
+}
+
 function getApiUrl() {
     var base = readOption('apiUrl') || 'https://api.openai.com';
     base = base.replace(/\/+$/, '');
-    if (base.indexOf('/v1/audio/speech') !== -1) {
+    if (/\/tts$/i.test(base)) {
         return base;
+    }
+    if (/\/audio\/speech$/i.test(base)) {
+        return base;
+    }
+    if (isOpenRouterBaseUrl(base)) {
+        if (/\/api\/v1$/i.test(base)) {
+            return base + '/tts';
+        }
+        if (/\/api$/i.test(base)) {
+            return base + '/v1/tts';
+        }
+        return base + '/api/v1/tts';
+    }
+    if (/\/v1$/i.test(base)) {
+        return base + '/audio/speech';
     }
     return base + '/v1/audio/speech';
 }
 
+function isMiniTtsModel(model) {
+    return !!model && model.indexOf('gpt-4o-mini-tts') !== -1;
+}
+
 function getVoice() {
-    var model = readOption('model');
-    return model === 'gpt-4o-mini-tts' ? readOption('voiceMini') : readOption('voice');
+    var model = getModel();
+    return isMiniTtsModel(model) ? readOption('voiceMini') : readOption('voice');
 }
 
 function pluginValidate(completion) {
@@ -40,7 +73,7 @@ function pluginValidate(completion) {
             'Content-Type': 'application/json'
         },
         body: {
-            model: readOption('model'),
+            model: getModel(),
             input: 'hi',
             voice: getVoice(),
             response_format: 'mp3'
@@ -83,7 +116,7 @@ function tts(query, completion) {
         return;
     }
 
-    var model = readOption('model');
+    var model = getModel();
     var voice = getVoice();
     var speed = parseFloat(readOption('speed')) || 1.0;
     var format = readOption('responseFormat') || 'mp3';
@@ -96,7 +129,7 @@ function tts(query, completion) {
         response_format: format,
         speed: speed
     };
-    if (instructions && model === 'gpt-4o-mini-tts') {
+    if (instructions && isMiniTtsModel(model)) {
         body.instructions = instructions;
     }
 
@@ -121,7 +154,7 @@ function tts(query, completion) {
             }
 
             if (!resp.rawData) {
-                completion({ error: { type: 'api', message: 'OpenAI 没有返回音频数据。' } });
+                completion({ error: { type: 'api', message: 'TTS 服务没有返回音频数据。' } });
                 return;
             }
 
@@ -153,9 +186,9 @@ function readOption(name) {
 
 function validateOptions() {
     if (!readOption('apiKey')) {
-        return { type: 'param', message: '请先在插件设置中填写 OpenAI API Key。' };
+        return { type: 'param', message: '请先在插件设置中填写 API Key。' };
     }
-    if (!readOption('model')) {
+    if (!getModel()) {
         return { type: 'param', message: '请先填写 TTS 模型 ID。' };
     }
     if (!getVoice()) {
@@ -181,7 +214,7 @@ function parseHttpError(resp) {
     } else if (statusCode === 429) {
         context = '请求过于频繁，请稍后再试';
     } else if (statusCode >= 500) {
-        context = 'OpenAI 服务暂时不可用，请稍后再试';
+        context = 'TTS 服务暂时不可用，请稍后再试';
     }
 
     var message = 'HTTP ' + statusCode;

@@ -2,6 +2,14 @@
   "identifier": "bob-plugin-openai-tts",
   "versions": [
     {
+      "version": "1.2.2",
+      "desc": "兼容 OpenRouter TTS 端点，精简模型选择并支持自定义模型 ID。",
+      "sha256": "df960cfd31d7959c82fb944583aa54c9971dbc18c0fb9931e0528446084ba28d",
+      "url": "https://github.com/poyih/bob-plugin-openai-tts/releases/download/v1.2.2/openai-tts-1.2.2.bobplugin",
+      "minBobVersion": "1.8.0",
+      "timestamp": 1776695849000
+    },
+    {
       "version": "1.1.0",
       "desc": "验证按钮现在会真正调用 API 检测配置是否有效。",
       "sha256": "00074e76233a47f87dac7c012d8b32c71c00c6067a596ae6e4b2d638d37eccde",
