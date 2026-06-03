@@ -40,7 +40,7 @@
 - OpenAI 兼容地址会自动补全到 `/v1/audio/speech`；OpenRouter 地址会自动补全到 `/api/v1/tts`。
 - API URL 支持填写完整地址（如 `https://your-proxy.com/v1/audio/speech` 或 `https://openrouter.ai/api/v1/tts`）、`/v1` 基地址，或仅填写域名。
 - `gpt-4o-mini-tts` 的快照模型和 OpenRouter 命名空间模型会自动复用同一套音色与 `Instructions` 逻辑。
-- 需要 Bob 1.8.0 及以上版本，已在最新的 Bob 1.19.x 上验证；`gpt-4o-mini-tts-2025-12-15` 为 OpenAI 当前最新的 TTS 快照模型。
+- 需要 Bob 1.8.0 及以上版本，兼容最新的 Bob 1.20；`gpt-4o-mini-tts-2025-12-15` 为 OpenAI 当前最新的 TTS 快照模型。
 
 ## 支持的语言
 
