@@ -15,7 +15,7 @@
 | --- | --- |
 | **API Key** | 你的 OpenAI 或 OpenRouter API 密钥 |
 | **API URL** | 自定义 API 地址，用于代理或兼容服务（默认 `https://api.openai.com`） |
-| **Model** | 常用 TTS 模型预设：`tts-1`、`tts-1-hd`、`gpt-4o-mini-tts` |
+| **Model** | 常用 TTS 模型预设：`tts-1`、`tts-1-hd`、`gpt-4o-mini-tts`（最新可控）、`gpt-4o-mini-tts-2025-12-15`（固定快照） |
 | **Custom Model ID** | 可选。填写完整模型 ID 时，会覆盖上方预设，适合 OpenRouter 等兼容服务 |
 | **Voice (tts-1 / tts-1-hd)** | 音色：alloy、echo、fable、onyx、nova、shimmer |
 | **Voice (gpt-4o-mini-tts family)** | 音色：alloy、ash、ballad、cedar、coral、echo、fable、marin、onyx、nova、sage、shimmer、verse |
@@ -40,6 +40,7 @@
 - OpenAI 兼容地址会自动补全到 `/v1/audio/speech`；OpenRouter 地址会自动补全到 `/api/v1/tts`。
 - API URL 支持填写完整地址（如 `https://your-proxy.com/v1/audio/speech` 或 `https://openrouter.ai/api/v1/tts`）、`/v1` 基地址，或仅填写域名。
 - `gpt-4o-mini-tts` 的快照模型和 OpenRouter 命名空间模型会自动复用同一套音色与 `Instructions` 逻辑。
+- 需要 Bob 1.8.0 及以上版本，已在最新的 Bob 1.19.x 上验证；`gpt-4o-mini-tts-2025-12-15` 为 OpenAI 当前最新的 TTS 快照模型。
 
 ## 支持的语言
 

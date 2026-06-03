@@ -1,6 +1,6 @@
 {
   "identifier": "bob-plugin-openai-tts",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "category": "tts",
   "name": "OpenAI TTS",
   "summary": "使用 OpenAI / OpenRouter 兼容 TTS API 进行语音合成。",
@@ -35,12 +35,13 @@
       "identifier": "model",
       "type": "menu",
       "title": "Model",
-      "description": "Select a common TTS model, or choose Custom and fill a model ID below.",
+      "description": "Select a common TTS model, or choose Custom and fill a model ID below. gpt-4o-mini-tts is the newest steerable model; pin the 2025-12-15 snapshot for reproducible voices.",
       "defaultValue": "tts-1",
       "menuValues": [
         { "title": "tts-1", "value": "tts-1" },
         { "title": "tts-1-hd", "value": "tts-1-hd" },
-        { "title": "gpt-4o-mini-tts", "value": "gpt-4o-mini-tts" },
+        { "title": "gpt-4o-mini-tts (latest)", "value": "gpt-4o-mini-tts" },
+        { "title": "gpt-4o-mini-tts-2025-12-15", "value": "gpt-4o-mini-tts-2025-12-15" },
         { "title": "Custom Model ID", "value": "custom" }
       ]
     },
