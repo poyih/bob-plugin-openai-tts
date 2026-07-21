@@ -33,6 +33,8 @@
 | **API URL** | `https://openrouter.ai`、`https://openrouter.ai/api`、`https://openrouter.ai/api/v1` 或完整 `https://openrouter.ai/api/v1/tts` |
 | **Model** | `gpt-4o-mini-tts` 或任意预设 |
 | **Custom Model ID** | `openai/gpt-4o-mini-tts-2025-12-15` |
+| **Audio Format** | OpenRouter 仅支持 MP3 / PCM；若选 AAC/OPUS/FLAC/WAV 会自动回退到 MP3 |
+| **Instructions** | 自动以 `provider.options.openai.instructions` 形式透传给 OpenAI，控制语气/情感 |
 
 ## 注意事项
 
@@ -41,6 +43,7 @@
 - API URL 支持填写完整地址（如 `https://your-proxy.com/v1/audio/speech` 或 `https://openrouter.ai/api/v1/tts`）、`/v1` 基地址，或仅填写域名；未带 `http(s)://` 协议时会自动补上 `https://`。
 - `gpt-4o-mini-tts` 的快照模型和 OpenRouter 命名空间模型会自动复用同一套音色与 `Instructions` 逻辑。
 - `gpt-4o-mini-tts` 不支持 `speed` 参数（传非 1.0 值会被 OpenAI 拒绝并返回 400），因此 Speed 选项仅对 `tts-1` / `tts-1-hd` 生效；mini-tts 系列请用 Instructions 控制语速。
+- OpenRouter 的 TTS 端点仅接受 `mp3` / `pcm` 两种 `response_format`，选其他格式会自动回退到 MP3；OpenRouter 上的 `instructions` 会以 `provider.options.openai.instructions` 形式透传，直接 OpenAI 则用顶层 `instructions`。
 - 需要 Bob 1.8.0 及以上版本，兼容最新的 Bob 1.20；`gpt-4o-mini-tts-2025-12-15` 为 OpenAI 当前最新的 TTS 快照模型。
 
 ## 支持的语言

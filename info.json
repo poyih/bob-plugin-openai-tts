@@ -1,6 +1,6 @@
 {
   "identifier": "bob-plugin-openai-tts",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "category": "tts",
   "name": "OpenAI TTS",
   "summary": "使用 OpenAI / OpenRouter 兼容 TTS API 进行语音合成。",
@@ -112,6 +112,7 @@
       "identifier": "responseFormat",
       "type": "menu",
       "title": "Audio Format",
+      "description": "OpenAI supports all six formats. OpenRouter only supports MP3 and PCM; other selections auto-fallback to MP3 on OpenRouter.",
       "defaultValue": "mp3",
       "menuValues": [
         { "title": "MP3 (default)", "value": "mp3" },

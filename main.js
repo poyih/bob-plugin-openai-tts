@@ -15,6 +15,19 @@ function isOpenRouterBaseUrl(base) {
     return /^https?:\/\/(?:[^\/]+\.)?openrouter\.ai(?:\/|$)/i.test(base);
 }
 
+function isUsingOpenRouter() {
+    // getApiUrl 已完成协议补全与路径解析，OpenRouter 场景下结果必含 openrouter.ai 域名。
+    return isOpenRouterBaseUrl(getApiUrl());
+}
+
+function clampFormat(format) {
+    // OpenRouter 的 /tts 仅接受 mp3 / pcm，其余格式会返回 400；自动回退到 mp3 保证可用。
+    if (isUsingOpenRouter() && format !== 'mp3' && format !== 'pcm') {
+        return 'mp3';
+    }
+    return format;
+}
+
 function getModel() {
     var customModel = readOption('customModel');
     if (customModel) {
@@ -47,6 +60,10 @@ function getApiUrl() {
         if (/\/api$/i.test(base)) {
             return base + '/v1/tts';
         }
+        if (/\/v1$/i.test(base)) {
+            // openrouter.ai/v1 这类仿 OpenAI 的误填，纠正为 /api/v1/tts，避免生成 /v1/api/v1/tts 重复路径。
+            return base.replace(/\/v1$/i, '/api/v1/tts');
+        }
         return base + '/api/v1/tts';
     }
     if (/\/v1$/i.test(base)) {
@@ -71,6 +88,8 @@ function pluginValidate(completion) {
         return;
     }
 
+    var format = clampFormat(readOption('responseFormat') || 'mp3');
+
     $http.request({
         method: 'POST',
         url: getApiUrl(),
@@ -82,7 +101,7 @@ function pluginValidate(completion) {
             model: getModel(),
             input: 'hi',
             voice: getVoice(),
-            response_format: 'mp3'
+            response_format: format
         },
         timeout: 15,
         handler: function(resp) {
@@ -126,8 +145,9 @@ function tts(query, completion) {
     var voice = getVoice();
     var speedRaw = parseFloat(readOption('speed'));
     var speed = isNaN(speedRaw) ? 1.0 : speedRaw;
-    var format = readOption('responseFormat') || 'mp3';
+    var format = clampFormat(readOption('responseFormat') || 'mp3');
     var instructions = readOption('instructions');
+    var openRouter = isUsingOpenRouter();
 
     var body = {
         model: model,
@@ -140,7 +160,12 @@ function tts(query, completion) {
         body.speed = speed;
     }
     if (instructions && isMiniTtsModel(model)) {
-        body.instructions = instructions;
+        // OpenRouter 要求 instructions 嵌套于 provider.options.openai，顶层字段会被静默丢弃。
+        if (openRouter) {
+            body.provider = { options: { openai: { instructions: instructions } } };
+        } else {
+            body.instructions = instructions;
+        }
     }
 
     $http.request({
