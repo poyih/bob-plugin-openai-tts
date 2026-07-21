@@ -1,6 +1,6 @@
 {
   "identifier": "bob-plugin-openai-tts",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "category": "tts",
   "name": "OpenAI TTS",
   "summary": "使用 OpenAI / OpenRouter 兼容 TTS API 进行语音合成。",
@@ -97,6 +97,7 @@
       "identifier": "speed",
       "type": "menu",
       "title": "Speed",
+      "description": "Only applies to tts-1 / tts-1-hd. gpt-4o-mini-tts does not support the speed parameter; control pacing via Instructions instead.",
       "defaultValue": "1.0",
       "menuValues": [
         { "title": "0.5x", "value": "0.5" },
@@ -116,7 +117,9 @@
         { "title": "MP3 (default)", "value": "mp3" },
         { "title": "AAC", "value": "aac" },
         { "title": "OPUS", "value": "opus" },
-        { "title": "FLAC", "value": "flac" }
+        { "title": "FLAC", "value": "flac" },
+        { "title": "WAV", "value": "wav" },
+        { "title": "PCM", "value": "pcm" }
       ]
     },
     {

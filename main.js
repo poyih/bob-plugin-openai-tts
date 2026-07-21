@@ -28,11 +28,17 @@ function getModel() {
 function getApiUrl() {
     var base = readOption('apiUrl') || 'https://api.openai.com';
     base = base.replace(/\/+$/, '');
+    if (base && !/^https?:\/\//i.test(base)) {
+        base = 'https://' + base;
+    }
     if (/\/tts$/i.test(base)) {
         return base;
     }
     if (/\/audio\/speech$/i.test(base)) {
         return base;
+    }
+    if (/\/audio$/i.test(base)) {
+        return base + '/speech';
     }
     if (isOpenRouterBaseUrl(base)) {
         if (/\/api\/v1$/i.test(base)) {
@@ -118,7 +124,8 @@ function tts(query, completion) {
 
     var model = getModel();
     var voice = getVoice();
-    var speed = parseFloat(readOption('speed')) || 1.0;
+    var speedRaw = parseFloat(readOption('speed'));
+    var speed = isNaN(speedRaw) ? 1.0 : speedRaw;
     var format = readOption('responseFormat') || 'mp3';
     var instructions = readOption('instructions');
 
@@ -126,9 +133,12 @@ function tts(query, completion) {
         model: model,
         input: text,
         voice: voice,
-        response_format: format,
-        speed: speed
+        response_format: format
     };
+    // speed 仅 tts-1 / tts-1-hd 支持；gpt-4o-mini-tts 传非 1.0 会报 400，语速改由 instructions 控制。
+    if (!isMiniTtsModel(model)) {
+        body.speed = speed;
+    }
     if (instructions && isMiniTtsModel(model)) {
         body.instructions = instructions;
     }
@@ -158,7 +168,13 @@ function tts(query, completion) {
                 return;
             }
 
-            var audioBase64 = resp.rawData.toBase64();
+            var audioBase64 = '';
+            try {
+                audioBase64 = resp.rawData.toBase64();
+            } catch (e) {
+                completion({ error: { type: 'api', message: '音频数据转换失败。' } });
+                return;
+            }
             if (!audioBase64) {
                 completion({ error: { type: 'api', message: '音频数据转换失败。' } });
                 return;
@@ -203,10 +219,20 @@ function parseHttpError(resp) {
 
     try {
         var body = resp.data;
-        if (body && body.error && body.error.message) {
+        if (typeof body === 'string') {
+            apiMessage = body;
+        } else if (body && body.error && body.error.message) {
             apiMessage = body.error.message;
+        } else if (body && body.message) {
+            apiMessage = body.message;
+        } else if (body && body.detail) {
+            apiMessage = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
         }
     } catch (e) {}
+
+    if (apiMessage && apiMessage.length > 500) {
+        apiMessage = apiMessage.slice(0, 500) + '…';
+    }
 
     var context = '';
     if (statusCode === 401) {

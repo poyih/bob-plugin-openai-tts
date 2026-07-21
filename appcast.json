@@ -2,6 +2,14 @@
   "identifier": "bob-plugin-openai-tts",
   "versions": [
     {
+      "version": "1.4.0",
+      "desc": "修复 gpt-4o-mini-tts 传 speed 参数报 400 的问题（speed 现仅对 tts-1/tts-1-hd 生效）；增强错误提示与音频转换稳定性；新增 WAV、PCM 音频格式。",
+      "sha256": "45266a5deb4f34c5f8425d224508d6d992e91489b8cbf3c4bb31597f00244693",
+      "url": "https://github.com/poyih/bob-plugin-openai-tts/releases/download/v1.4.0/openai-tts-1.4.0.bobplugin",
+      "minBobVersion": "1.8.0",
+      "timestamp": 1784645799737
+    },
+    {
       "version": "1.3.0",
       "desc": "新增 gpt-4o-mini-tts-2025-12-15 快照模型预设；兼容最新 Bob 1.20。",
       "sha256": "9375982b514d4449fad0a2a8d392995ffee290f27639708e0d45d287a98e8412",
