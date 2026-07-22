@@ -1,5 +1,6 @@
 # Build artifacts
 *.bobplugin
+dist/
 
 # macOS
 .DS_Store

@@ -1,6 +1,6 @@
 {
   "identifier": "bob-plugin-openai-tts",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "category": "tts",
   "name": "OpenAI TTS",
   "summary": "使用 OpenAI / OpenRouter 兼容 TTS API 进行语音合成。",
@@ -25,17 +25,28 @@
       "type": "text",
       "title": "API URL",
       "defaultValue": "https://api.openai.com",
-      "desc": "自定义 API 地址，用于代理或兼容服务。支持填写域名、/v1 基地址或完整接口地址；OpenRouter 可填写 https://openrouter.ai、https://openrouter.ai/api、https://openrouter.ai/api/v1 或完整 /tts 地址。",
+      "desc": "自定义 API 地址，用于代理或兼容服务。支持填写域名、/v1 基地址或完整接口地址；OpenRouter 可填写 https://openrouter.ai、https://openrouter.ai/api、https://openrouter.ai/api/v1 或完整 /api/v1/audio/speech 地址。仅建议使用 HTTPS；本机回环地址除外。",
       "textConfig": {
         "type": "visible",
         "placeholderText": "https://api.openai.com"
       }
     },
     {
+      "identifier": "allowInsecureHttp",
+      "type": "menu",
+      "title": "Allow insecure remote HTTP",
+      "desc": "危险选项。仅在必须连接不支持 HTTPS 的远程兼容服务时开启；API Key 和待合成文本会以明文传输。本机 localhost/127.0.0.0/8/[::1] 无需开启。",
+      "defaultValue": "false",
+      "menuValues": [
+        { "title": "No (recommended)", "value": "false" },
+        { "title": "Yes, I understand the risk", "value": "true" }
+      ]
+    },
+    {
       "identifier": "model",
       "type": "menu",
       "title": "Model",
-      "description": "Select a common TTS model, or choose Custom and fill a model ID below. gpt-4o-mini-tts is the newest steerable model; pin the 2025-12-15 snapshot for reproducible voices.",
+      "desc": "Select a common TTS model, or choose Custom and fill a model ID below. gpt-4o-mini-tts is the newest steerable model; pin the 2025-12-15 snapshot for reproducible voices.",
       "defaultValue": "tts-1",
       "menuValues": [
         { "title": "tts-1", "value": "tts-1" },
@@ -60,14 +71,17 @@
       "identifier": "voice",
       "type": "menu",
       "title": "Voice (tts-1 / tts-1-hd)",
-      "description": "Used when Model is tts-1 or tts-1-hd.",
+      "desc": "Used when Model is tts-1 or tts-1-hd. Custom Voice ID below overrides this selection.",
       "defaultValue": "alloy",
       "menuValues": [
         { "title": "alloy", "value": "alloy" },
+        { "title": "ash", "value": "ash" },
+        { "title": "coral", "value": "coral" },
         { "title": "echo", "value": "echo" },
         { "title": "fable", "value": "fable" },
         { "title": "onyx", "value": "onyx" },
         { "title": "nova", "value": "nova" },
+        { "title": "sage", "value": "sage" },
         { "title": "shimmer", "value": "shimmer" }
       ]
     },
@@ -75,7 +89,7 @@
       "identifier": "voiceMini",
       "type": "menu",
       "title": "Voice (gpt-4o-mini-tts family)",
-      "description": "Used when Model is any gpt-4o-mini-tts snapshot, including OpenRouter IDs.",
+      "desc": "Used when Model is any gpt-4o-mini-tts snapshot, including OpenRouter IDs. Custom Voice ID below overrides this selection.",
       "defaultValue": "marin",
       "menuValues": [
         { "title": "alloy", "value": "alloy" },
@@ -94,10 +108,21 @@
       ]
     },
     {
+      "identifier": "customVoice",
+      "type": "text",
+      "title": "Custom Voice ID",
+      "defaultValue": "",
+      "desc": "可选。覆盖上方 Voice 预设。非 OpenRouter 地址下，voice_... ID 会作为 OpenAI voice 对象发送（需具备相应资格）；OpenRouter 地址下始终按模型支持的音色字符串发送。",
+      "textConfig": {
+        "type": "visible",
+        "placeholderText": "voice_123abc or provider voice name"
+      }
+    },
+    {
       "identifier": "speed",
       "type": "menu",
       "title": "Speed",
-      "description": "Only applies to tts-1 / tts-1-hd. gpt-4o-mini-tts does not support the speed parameter; control pacing via Instructions instead.",
+      "desc": "Only applies to tts-1 / tts-1-hd. gpt-4o-mini-tts does not use the speed parameter; control pacing via Instructions instead.",
       "defaultValue": "1.0",
       "menuValues": [
         { "title": "0.5x", "value": "0.5" },
@@ -112,7 +137,7 @@
       "identifier": "responseFormat",
       "type": "menu",
       "title": "Audio Format",
-      "description": "OpenAI supports all six formats. OpenRouter only supports MP3 and PCM; other selections auto-fallback to MP3 on OpenRouter.",
+      "desc": "OpenAI supports all six formats; AAC validation accepts ADTS and MP4/M4A containers (not ADIF). OpenRouter only supports MP3 and PCM, so other selections auto-fallback to MP3. Headerless PCM is wrapped as a 24 kHz, mono, 16-bit WAV for Bob playback.",
       "defaultValue": "mp3",
       "menuValues": [
         { "title": "MP3 (default)", "value": "mp3" },
