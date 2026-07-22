@@ -2,6 +2,14 @@
   "identifier": "bob-plugin-openai-tts",
   "versions": [
     {
+      "version": "1.5.0",
+      "desc": "全面加固 OpenAI/OpenRouter 请求、安全边界、流式响应与音频结构校验；新增自定义模型/音色、64 MB 响应上限、PCM 自动封装、自动化测试与确定性构建。",
+      "sha256": "cd2413b72b17cdd547aa698fc1958c9a1ab3d51ffe73f5171f99eb690fb5da34",
+      "url": "https://github.com/poyih/bob-plugin-openai-tts/releases/download/v1.5.0/openai-tts-1.5.0.bobplugin",
+      "minBobVersion": "1.8.0",
+      "timestamp": 1784704095000
+    },
+    {
       "version": "1.4.1",
       "desc": "改进 OpenRouter 的格式、instructions 与路径处理。已知限制：OpenRouter 当前 Speech 端点为 /api/v1/audio/speech，而本版本对 OpenRouter 基地址仍会补成旧 /tts；请临时填写完整端点，或升级后续修复版本。",
       "sha256": "0e1cf4fecdad325b9a60eb6b14036aa8017b4cdb1338684a08685de410566080",
