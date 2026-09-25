@@ -49,14 +49,24 @@ jobs:
           echo "SHA-256 ${checksum}"
           git fetch --force --no-tags origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
           title="OpenAI TTS ${GITHUB_REF_NAME}"
-          notes_file="$(mktemp)"
+          subject=""
+          body=""
           if [ "$(git cat-file -t "${GITHUB_REF_NAME}")" = "tag" ]; then
-            git tag -l --format='%(contents:body)' "${GITHUB_REF_NAME}" > "${notes_file}"
+            subject="$(git tag -l --format='%(contents:subject)' "${GITHUB_REF_NAME}")"
+            body="$(git tag -l --format='%(contents:body)' "${GITHUB_REF_NAME}")"
           fi
-          if [ ! -s "${notes_file}" ]; then
-            printf '## %s\n' "${title}" > "${notes_file}"
-          fi
-          printf '\n### 校验\n\n- SHA-256：`%s`\n' "${checksum}" >> "${notes_file}"
+          case "${subject}" in
+            *[![:space:]]*) ;;
+            *) subject="${title}" ;;
+          esac
+          notes_file="$(mktemp)"
+          {
+            printf '## %s\n' "${subject}"
+            case "${body}" in
+              *[![:space:]]*) printf '\n%s\n' "${body}" ;;
+            esac
+            printf '\n### 校验\n\n- SHA-256：`%s`\n' "${checksum}"
+          } > "${notes_file}"
           gh release create "${GITHUB_REF_NAME}" "${asset}" \
             --repo "${GITHUB_REPOSITORY}" \
             --title "${title}" \
