@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Verify tag matches manifest version
+        run: |
+          set -euo pipefail
+          version="$(node -e 'process.stdout.write(String(require("./info.json").version || ""))')"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "error: tag ${GITHUB_REF_NAME} does not match info.json version ${version}" >&2
+            exit 1
+          fi
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build plugin package
+        run: npm run build
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          asset="dist/openai-tts-${version}.bobplugin"
+          checksum="$(sha256sum "${asset}" | awk '{print $1}')"
+          echo "SHA-256 ${checksum}"
+          git fetch --force --no-tags origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          title="OpenAI TTS ${GITHUB_REF_NAME}"
+          subject=""
+          body=""
+          if [ "$(git cat-file -t "${GITHUB_REF_NAME}")" = "tag" ]; then
+            subject="$(git tag -l --format='%(contents:subject)' "${GITHUB_REF_NAME}")"
+            body="$(git tag -l --format='%(contents:body)' "${GITHUB_REF_NAME}")"
+          fi
+          case "${subject}" in
+            *[![:space:]]*) ;;
+            *) subject="${title}" ;;
+          esac
+          notes_file="$(mktemp)"
+          {
+            printf '## %s\n' "${subject}"
+            case "${body}" in
+              *[![:space:]]*) printf '\n%s\n' "${body}" ;;
+            esac
+            printf '\n### 校验\n\n- SHA-256：`%s`\n' "${checksum}"
+          } > "${notes_file}"
+          gh release create "${GITHUB_REF_NAME}" "${asset}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${title}" \
+            --notes-file "${notes_file}" \
+            --verify-tag
