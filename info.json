@@ -1,6 +1,6 @@
 {
   "identifier": "bob-plugin-openai-tts",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "category": "tts",
   "name": "OpenAI TTS",
   "summary": "使用 OpenAI / OpenRouter 兼容 TTS API 进行语音合成。",

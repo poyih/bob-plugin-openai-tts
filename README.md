@@ -90,6 +90,8 @@ npm run verify:appcast
 
 发布时必须保持 `identifier` 为 `bob-plugin-openai-tts`。这是现有安装所绑定的历史兼容键，也是 Bob 当前 identifier 规则的遗留例外，详见 [MIGRATION.md](MIGRATION.md)。当前 appcast 从采用此 identifier 的 `0.3.3` 开始；只有在 GitHub Release 资产实际上传后才可添加新版本。URL、SHA-256 和发布时间必须来自已发布资产，不应预填或猜测。
 
+发布流程：先在 `main` 上把 `info.json` 与 `package.json` 提升到同一版本号并合并；然后推送附注标签 `vX.Y.Z`（标签说明会成为 Release 正文），`.github/workflows/release.yml` 会重新运行测试、确定性构建并创建带 `openai-tts-X.Y.Z.bobplugin` 资产的 GitHub Release；最后下载已上传的资产计算 SHA-256，用 Release 的实际发布时间补充 `appcast.json` 条目，运行 `npm run verify:appcast` 核对后再合并。
+
 ## License
 
 [MIT](LICENSE)

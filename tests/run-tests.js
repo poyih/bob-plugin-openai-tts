@@ -11,6 +11,7 @@ const INFO_PATH = path.join(REPO_ROOT, 'info.json');
 const APPCAST_PATH = path.join(REPO_ROOT, 'appcast.json');
 const LICENSE_PATH = path.join(REPO_ROOT, 'LICENSE');
 const CI_PATH = path.join(REPO_ROOT, '.github', 'workflows', 'ci.yml');
+const RELEASE_PATH = path.join(REPO_ROOT, '.github', 'workflows', 'release.yml');
 const MAIN_SOURCE = fs.readFileSync(MAIN_PATH, 'utf8');
 const MAX_AUDIO_BYTES = 64 * 1024 * 1024;
 
@@ -818,6 +819,23 @@ test('CI covers Node 18 and 22 and pins third-party actions by commit', () => {
   assert.match(workflow, /node-version:\s*\['18', '22'\]/);
   const actionRefs = Array.from(workflow.matchAll(/uses:\s*([^\s@]+)@([^\s#]+)/g));
   assert.ok(actionRefs.length >= 3, 'expected checkout, setup-node and upload-artifact actions');
+  for (const match of actionRefs) {
+    assert.match(match[2], /^[a-f0-9]{40}$/, `${match[1]} must be pinned to a full commit SHA`);
+  }
+});
+
+test('release workflow builds version tags with pinned actions and job-scoped write access', () => {
+  const workflow = fs.readFileSync(RELEASE_PATH, 'utf8');
+  assert.match(workflow, /on:\s*\n\s*push:\s*\n\s*tags:/, 'release must trigger on tag pushes only');
+  assert.ok(workflow.includes("- 'v[0-9]+.[0-9]+.[0-9]+'"), 'release must trigger on semantic version tags');
+  assert.match(workflow, /^permissions:\n  contents: read$/m, 'workflow-level token must stay read-only');
+  assert.match(workflow, /^    permissions:\n      contents: write$/m, 'only the release job may write repository contents');
+  assert.match(workflow, /npm test/);
+  assert.match(workflow, /npm run build/);
+  assert.match(workflow, /gh release create/);
+  assert.match(workflow, /--verify-tag/);
+  const actionRefs = Array.from(workflow.matchAll(/uses:\s*([^\s@]+)@([^\s#]+)/g));
+  assert.ok(actionRefs.length >= 2, 'expected checkout and setup-node actions');
   for (const match of actionRefs) {
     assert.match(match[2], /^[a-f0-9]{40}$/, `${match[1]} must be pinned to a full commit SHA`);
   }
