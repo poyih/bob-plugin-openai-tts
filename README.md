@@ -92,6 +92,13 @@ npm run verify:appcast
 
 发布流程：先在 `main` 上把 `info.json` 与 `package.json` 提升到同一版本号并合并；然后推送附注标签 `vX.Y.Z`（标签说明会成为 Release 正文），`.github/workflows/release.yml` 会重新运行测试、确定性构建并创建带 `openai-tts-X.Y.Z.bobplugin` 资产的 GitHub Release；最后下载已上传的资产计算 SHA-256，用 Release 的实际发布时间补充 `appcast.json` 条目，运行 `npm run verify:appcast` 核对后再合并。
 
+打标签时请加上 `--cleanup=verbatim`。Git 默认会把 `#` 开头的行当作注释删除，标签说明里的 Markdown 标题会因此丢失，Release 正文只剩下段落和列表：
+
+```bash
+git tag -a --cleanup=verbatim -F release-notes.md vX.Y.Z <commit>
+git push origin vX.Y.Z
+```
+
 ## License
 
 [MIT](LICENSE)
