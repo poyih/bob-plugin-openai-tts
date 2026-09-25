@@ -22,7 +22,7 @@
 | **Custom Model ID** | 覆盖 Model 预设，适合 OpenRouter 命名空间模型和其他兼容服务 |
 | **Voice** | 按模型选择内置音色 |
 | **Custom Voice ID** | 覆盖 Voice 预设；可填写 OpenAI `voice_...` ID，或兼容服务定义的音色字符串 |
-| **Speed** | 0.5x–2.0x，仅对 `tts-1` / `tts-1-hd` 生效；mini-tts 系列请用 Instructions 控制语速 |
+| **Speed** | 0.25x–4.0x，仅对 `tts-1` / `tts-1-hd` 生效；mini-tts 系列请用 Instructions 控制语速 |
 | **Audio Format** | MP3、AAC、OPUS、FLAC、WAV 或 PCM |
 | **Instructions** | 控制 mini-tts 系列的风格、语气、情感和语速 |
 
