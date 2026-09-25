@@ -125,12 +125,15 @@
       "desc": "Only applies to tts-1 / tts-1-hd. gpt-4o-mini-tts does not use the speed parameter; control pacing via Instructions instead.",
       "defaultValue": "1.0",
       "menuValues": [
+        { "title": "0.25x", "value": "0.25" },
         { "title": "0.5x", "value": "0.5" },
         { "title": "0.75x", "value": "0.75" },
         { "title": "1.0x (default)", "value": "1.0" },
         { "title": "1.25x", "value": "1.25" },
         { "title": "1.5x", "value": "1.5" },
-        { "title": "2.0x", "value": "2.0" }
+        { "title": "2.0x", "value": "2.0" },
+        { "title": "3.0x", "value": "3.0" },
+        { "title": "4.0x", "value": "4.0" }
       ]
     },
     {

@@ -394,6 +394,16 @@ test('uses direct OpenAI instructions and custom voice object syntax', () => {
   assert.equal(body.speed, undefined);
 });
 
+test('sends the selected speed verbatim for tts-1 / tts-1-hd', () => {
+  for (const [model, speed, expected] of [['tts-1', '0.25', 0.25], ['tts-1-hd', '4.0', 4]]) {
+    const plugin = loadPlugin({ model, speed });
+    const output = invokeTts(plugin, 'hello');
+    assert.ok(output.result, `expected audio for ${model}`);
+    assert.equal(plugin.requests[0].body.speed, expected);
+    assert.equal(plugin.requests[0].body.instructions, undefined);
+  }
+});
+
 test('reports a missing API key with Bob secretKey classification', () => {
   const plugin = loadPlugin({ apiKey: '' });
   const output = invokeTts(plugin, 'hello');
@@ -781,6 +791,16 @@ test('manifest uses Bob option schema and exposes the new safety controls', () =
   for (const voice of ['alloy', 'ash', 'coral', 'echo', 'fable', 'onyx', 'nova', 'sage', 'shimmer']) {
     assert.ok(legacyVoices.has(voice), `missing tts-1 voice: ${voice}`);
   }
+
+  const speedOption = options.get('speed');
+  assert.equal(speedOption.type, 'menu');
+  assert.equal(speedOption.defaultValue, '1.0');
+  const speeds = speedOption.menuValues.map(item => Number(item.value));
+  assert.ok(speeds.every(value => Number.isFinite(value) && value >= 0.25 && value <= 4.0), 'speed presets must stay within the OpenAI 0.25–4.0 range');
+  assert.equal(Math.min(...speeds), 0.25);
+  assert.equal(Math.max(...speeds), 4.0);
+  assert.deepEqual(speeds, [...speeds].sort((a, b) => a - b), 'speed presets must be listed in ascending order');
+  assert.equal(new Set(speeds).size, speeds.length, 'speed presets must be unique');
 });
 
 test('repository carries the declared MIT license', () => {
