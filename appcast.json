@@ -2,6 +2,14 @@
   "identifier": "bob-plugin-openai-tts",
   "versions": [
     {
+      "version": "1.5.1",
+      "desc": "Speed 档位扩展至 OpenAI 官方 0.25x–4.0x 范围，新增 0.25x、3.0x、4.0x（仅对 tts-1 / tts-1-hd 生效）；新增按标签触发的 GitHub Release 工作流。",
+      "sha256": "e4a2052042ac00b12a8ffeb69396c8d10aca5b219ef605e9c12ad7a4c56e8edc",
+      "url": "https://github.com/poyih/bob-plugin-openai-tts/releases/download/v1.5.1/openai-tts-1.5.1.bobplugin",
+      "minBobVersion": "1.8.0",
+      "timestamp": 1790315698000
+    },
+    {
       "version": "1.5.0",
       "desc": "全面加固 OpenAI/OpenRouter 请求、安全边界、流式响应与音频结构校验；新增自定义模型/音色、64 MB 响应上限、PCM 自动封装、自动化测试与确定性构建。",
       "sha256": "cd2413b72b17cdd547aa698fc1958c9a1ab3d51ffe73f5171f99eb690fb5da34",
