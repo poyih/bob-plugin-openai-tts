@@ -1,6 +1,6 @@
 {
   "name": "bob-plugin-openai-tts",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "description": "Development checks and reproducible packaging for the Bob OpenAI TTS plugin.",
   "license": "MIT",
@@ -11,6 +11,7 @@
     "test": "node tests/run-tests.js",
     "build": "bash scripts/build.sh",
     "check": "npm test && npm run build",
-    "verify:appcast": "node scripts/verify-appcast.js"
+    "verify:appcast": "node scripts/verify-appcast.js",
+    "verify:audio": "node scripts/verify-audio-fixtures.js"
   }
 }

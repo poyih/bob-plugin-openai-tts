@@ -27,6 +27,16 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Install audio decoder
+        if: matrix.node-version == '22'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Verify real audio fixtures
+        if: matrix.node-version == '22'
+        run: npm run verify:audio
+
       - name: Verify published appcast assets
         if: matrix.node-version == '22'
         run: npm run verify:appcast

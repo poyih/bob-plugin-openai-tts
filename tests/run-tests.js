@@ -12,7 +12,8 @@ const APPCAST_PATH = path.join(REPO_ROOT, 'appcast.json');
 const LICENSE_PATH = path.join(REPO_ROOT, 'LICENSE');
 const CI_PATH = path.join(REPO_ROOT, '.github', 'workflows', 'ci.yml');
 const RELEASE_PATH = path.join(REPO_ROOT, '.github', 'workflows', 'release.yml');
-const MAIN_SOURCE = fs.readFileSync(MAIN_PATH, 'utf8');
+const MAIN_SOURCE = require('../scripts/bundle').bundlePlugin();
+const MAIN_SCRIPT = new vm.Script(MAIN_SOURCE, { filename: MAIN_PATH });
 const MAX_AUDIO_BYTES = 64 * 1024 * 1024;
 
 function makeMpegFrame() {
@@ -56,60 +57,18 @@ function makeOggPage(payload, headerType, sequence) {
   return makeOggSegmentPage(payload, [payload.length], headerType, sequence);
 }
 
-function flacCrc8(bytes) {
-  let crc = 0;
-  for (const byte of bytes) {
-    crc ^= byte;
-    for (let bit = 0; bit < 8; bit += 1) crc = crc & 0x80 ? (crc << 1 ^ 0x07) & 0xff : crc << 1 & 0xff;
-  }
-  return crc;
-}
-
-function flacCrc16(bytes) {
-  let crc = 0;
-  for (const byte of bytes) {
-    crc ^= byte << 8;
-    for (let bit = 0; bit < 8; bit += 1) crc = crc & 0x8000 ? (crc << 1 ^ 0x8005) & 0xffff : crc << 1 & 0xffff;
-  }
-  return crc;
-}
-
-function makeFlacFile() {
-  const streamInfo = new Array(34).fill(0);
-  streamInfo[1] = 0x10;
-  streamInfo[3] = 0x10;
-  streamInfo[10] = 0x0a;
-  streamInfo[11] = 0xc4;
-  streamInfo[12] = 0x40;
-  streamInfo[13] = 0xf0;
-  streamInfo[17] = 0x10;
-  const frameHeader = [0xff, 0xf8, 0x60, 0x00, 0x00, 0x0f];
-  frameHeader.push(flacCrc8(frameHeader));
-  const frame = frameHeader.concat([0x00, 0x00, 0x00]);
-  const frameCrc = flacCrc16(frame);
-  frame.push(frameCrc >>> 8, frameCrc & 0xff);
-  return [...utf8('fLaC'), 0x80, 0x00, 0x00, 0x22, ...streamInfo, ...frame];
-}
-
 const MPEG_FRAME_BYTES = Object.freeze(makeMpegFrame());
-const VALID_MP3_BYTES = Object.freeze([
-  0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  ...MPEG_FRAME_BYTES
-]);
-const VALID_AAC_BYTES = Object.freeze([0xff, 0xf1, 0x50, 0x80, 0x01, 0x3f, 0xfc, 0x00, 0x00]);
-const VALID_MP4_BYTES = Object.freeze([
-  0x00, 0x00, 0x00, 0x10, ...utf8('ftypM4A '), 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x09, ...utf8('mdat'), 0x00
-]);
-const VALID_FLAC_BYTES = Object.freeze(makeFlacFile());
+function fixtureBytes(name) {
+  return Array.from(fs.readFileSync(path.join(__dirname, 'fixtures', name)));
+}
+const VALID_MP3_BYTES = Object.freeze(fixtureBytes('tone.mp3'));
+const VALID_AAC_BYTES = Object.freeze(fixtureBytes('tone.aac'));
+const VALID_MP4_BYTES = Object.freeze(fixtureBytes('tone.m4a'));
+const VALID_FLAC_BYTES = Object.freeze(fixtureBytes('tone.flac'));
 const OPUS_HEAD = Object.freeze([...utf8('OpusHead'), 0x01, 0x01, 0x00, 0x00, 0x80, 0xbb, 0x00, 0x00, 0x00, 0x00, 0x00]);
 const OPUS_TAGS = Object.freeze([...utf8('OpusTags'), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-const VALID_OPUS_BYTES = Object.freeze(
-  makeOggPage(OPUS_HEAD, 0x02, 0)
-    .concat(makeOggPage(OPUS_TAGS, 0x00, 1))
-    .concat(makeOggPage([0xf8, 0xff, 0xfe], 0x00, 2))
-);
-const VALID_WAV_BYTES = Object.freeze(makeWavFile([0x00, 0x00]));
+const VALID_OPUS_BYTES = Object.freeze(fixtureBytes('tone.opus'));
+const VALID_WAV_BYTES = Object.freeze(fixtureBytes('tone.wav'));
 
 const DEFAULT_OPTIONS = Object.freeze({
   apiKey: 'sk-test-only',
@@ -141,8 +100,12 @@ function rawData(bytes, overrides) {
     __isBobData: true,
     length: copy.length,
     readUInt8(index) {
-      if (index < 0 || index >= copy.length) throw new RangeError('readUInt8 out of bounds');
+      if (index < 0 || index >= copy.length) return 0;
       return copy[index];
+    },
+    toUTF8() {
+      try { return new TextDecoder('utf-8', { fatal: true }).decode(copy); }
+      catch (error) { return undefined; }
     },
     toByteArray() {
       return Array.from(copy);
@@ -256,7 +219,7 @@ function loadPlugin(optionOverrides, responder, environmentOverrides) {
   }
 
   vm.createContext(context);
-  vm.runInContext(MAIN_SOURCE, context, { filename: MAIN_PATH });
+  MAIN_SCRIPT.runInContext(context);
   return { context, options, requests, signals };
 }
 
@@ -511,7 +474,7 @@ test('accepts an Ogg OpusTags packet continued across pages', () => {
   const bytes = makeOggPage(OPUS_HEAD, 0x02, 0)
     .concat(makeOggSegmentPage(tags.slice(0, 255), [255], 0x00, 1))
     .concat(makeOggSegmentPage(tags.slice(255), [5], 0x01, 2))
-    .concat(makeOggPage([0xf8, 0xff, 0xfe], 0x00, 3));
+    .concat(makeOggPage([0xf8, 0xff, 0xfe], 0x04, 3));
   const plugin = loadPlugin({ responseFormat: 'opus' }, () => response(200, 'audio/ogg', bytes));
   const output = invokeTts(plugin, 'hello');
   assert.ok(output.result);
@@ -861,6 +824,227 @@ test('appcast is structurally safe, ordered, and compatible with the manifest id
     if (index > 0) {
       assert.ok(compareSemver(appcast.versions[index - 1].version, item.version) > 0, 'appcast versions must be strictly descending');
       assert.ok(appcast.versions[index - 1].timestamp > item.timestamp, 'release timestamps must descend with versions');
+    }
+  }
+});
+
+test('preserves PCM rate and channels from case-insensitive Content-Type headers', () => {
+  const pcm = [0, 0, 1, 0, 2, 0, 3, 0];
+  const plugin = loadPlugin({ customModel: 'provider/custom-tts', customVoice: 'provider-voice', responseFormat: 'pcm' }, () => response(200, 'audio/pcm', pcm, undefined, { headers: { 'cOnTeNt-TyPe': 'audio/pcm; rate="48000"; channels=2' } }));
+  const wav = Buffer.from(invokeTts(plugin, 'hello').result.value, 'base64');
+  assert.equal(wav.readUInt32LE(24), 48000);
+  assert.equal(wav.readUInt16LE(22), 2);
+  assert.equal(wav.readUInt32LE(28), 192000);
+  assert.equal(wav.readUInt16LE(32), 4);
+  assert.deepEqual(Array.from(wav.subarray(44)), pcm);
+});
+
+test('rejects unknown PCM metadata, unsupported encoding and incomplete channel frames', () => {
+  for (const [mime, pcm] of [
+    ['audio/pcm', [0, 0]],
+    ['audio/pcm;rate=abc;channels=1', [0, 0]],
+    ['audio/pcm;rate=48000;channels=0', [0, 0]],
+    ['audio/pcm;rate=48000;channels=2', [0, 0]],
+    ['audio/pcm;rate=24000;channels=1;bits=24', [0, 0]],
+    ['audio/pcm;rate=24000;channels=1;endianness=big', [0, 0]],
+    ['audio/pcm;rate=24000;rate=48000;channels=1', [0, 0]]
+  ]) {
+    const plugin = loadPlugin({ customModel: 'provider/custom-tts', responseFormat: 'pcm' }, () => response(200, mime, pcm));
+    assertError(invokeTts(plugin, 'hello'), 'api');
+  }
+});
+
+test('uses the same PCM metadata in the native and pure JS wrapping paths', () => {
+  const plugin = loadPlugin({ responseFormat: 'pcm' }, () => response(200, 'audio/pcm;rate=16000;channels=2', [0, 0, 1, 0]));
+  delete plugin.context.$data.fromByteArray;
+  const wav = Buffer.from(invokeTts(plugin, 'hello').result.value, 'base64');
+  assert.equal(wav.readUInt32LE(24), 16000);
+  assert.equal(wav.readUInt16LE(22), 2);
+});
+
+test('accepts a valid JSON-looking PCM sample followed by long silence', () => {
+  const pcm = new Array(9000).fill(0);
+  pcm[0] = 0x7b;
+  for (const streaming of [true, false]) {
+    const plugin = loadPlugin({ responseFormat: 'pcm' }, () => response(200, 'audio/pcm', pcm), { streaming });
+    const result = invokeTts(plugin, 'hello').result;
+    assert.ok(result);
+    assert.deepEqual(Array.from(Buffer.from(result.value, 'base64').subarray(44)), pcm);
+  }
+});
+
+test('rejects PCM-labeled JSON errors split inside Chinese UTF-8 bytes', () => {
+  let body = '{"error":{"message":"出错了"}}';
+  if (Buffer.byteLength(body) % 2) body += ' ';
+  const bytes = utf8(body);
+  const split = bytes.findIndex(byte => byte > 127) + 1;
+  const plugin = loadPlugin({ responseFormat: 'pcm' }, () => ({
+    response: { statusCode: 200, MIMEType: 'audio/pcm', expectedContentLength: bytes.length },
+    streamChunks: [rawData(bytes.slice(0, split)), rawData(bytes.slice(split))]
+  }));
+  assert.match(assertError(invokeTts(plugin, 'hello'), 'api').message, /出错了/);
+});
+
+test('rejects a truncated later MP3 or AAC frame and an MP4 with no audio track', () => {
+  const cases = [
+    ['mp3', 'audio/mpeg', Array.from(MPEG_FRAME_BYTES).concat(MPEG_FRAME_BYTES.slice(0, 40))],
+    ['aac', 'audio/aac', VALID_AAC_BYTES.slice(0, -1)],
+    ['aac', 'audio/mp4', [0, 0, 0, 16, ...utf8('ftypM4A '), 0, 0, 0, 0, 0, 0, 0, 9, ...utf8('mdat'), 0]],
+    ['aac', 'audio/mp4', VALID_MP4_BYTES.slice(0, -1)],
+    ['opus', 'audio/ogg', VALID_OPUS_BYTES.slice(0, -1)]
+  ];
+  for (const [responseFormat, mime, bytes] of cases) {
+    const plugin = loadPlugin({ responseFormat }, () => response(200, mime, bytes));
+    assertError(invokeTts(plugin, 'hello'), 'api');
+  }
+});
+
+test('omits unverified speed parameters and validates OpenAI model ranges', () => {
+  for (const customModel of ['provider/custom-tts', 'microsoft/mai-voice-2', 'microsoft/mai-voice-2.1']) {
+    const plugin = loadPlugin({ apiUrl: 'https://openrouter.ai', customModel, speed: '4.0' });
+    invokeTts(plugin, 'hello');
+    assert.equal(plugin.requests[0].body.speed, undefined);
+  }
+  for (const speed of ['0.1', '4.1', 'Infinity', '1.5garbage']) {
+    const plugin = loadPlugin({ model: 'tts-1', speed });
+    assertError(invokeTts(plugin, 'hello'), 'param');
+    assert.equal(plugin.requests.length, 0);
+  }
+  assert.equal(loadPlugin().context.isMiniTtsModel('another-gpt-4o-mini-tts-service'), false);
+  const plugin = loadPlugin({ apiUrl: 'https://openrouter.ai', customModel: 'mistralai/voxtral-mini-tts-2603', customVoice: 'en_paul_neutral', responseFormat: 'pcm' });
+  invokeTts(plugin, 'hello');
+  assert.equal(plugin.requests[0].body.response_format, 'mp3');
+});
+
+test('counts input tokens like the pinned OpenAI tiktoken reference', () => {
+  const plugin = loadPlugin({ model: 'gpt-4o-mini-tts' });
+  const reference = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'token-counts.json'), 'utf8'));
+  for (const item of reference.cases) assert.equal(plugin.context.countInputTokens(item.text), item.tokens, JSON.stringify(item.text).slice(0, 100));
+});
+
+test('applies mini token budgets without replacing the legacy character limit', () => {
+  const plugin = loadPlugin({ model: 'gpt-4o-mini-tts' });
+  const count = plugin.context.countInputTokens('😀');
+  const boundary = '😀'.repeat(Math.floor(2000 / count));
+  assert.ok(invokeTts(plugin, boundary).result);
+  assert.match(assertError(invokeTts(plugin, boundary + '😀'), 'param').message, /2000.*token/);
+  const legacy = loadPlugin();
+  assert.ok(invokeTts(legacy, '😀'.repeat(4096)).result);
+  assertError(invokeTts(legacy, '😀'.repeat(4097)), 'param');
+  const instructions = loadPlugin({ model: 'gpt-4o-mini-tts', instructions: boundary });
+  assertError(invokeValidate(instructions), 'param');
+  assert.equal(instructions.requests.length, 0);
+  const serverError = loadPlugin({}, () => response(400, 'application/json', utf8('{"error":{"message":"input exceeds maximum token limit"}}')));
+  assert.match(assertError(invokeTts(serverError, 'hello'), 'param').message, /分段/);
+});
+
+test('completes asynchronous streaming only once and parses merged UTF-8 errors', async () => {
+  const plugin = loadPlugin({ responseFormat: 'pcm' });
+  let body = '{"error":{"message":"异步出错"}}';
+  if (Buffer.byteLength(body) % 2) body += ' ';
+  const bytes = utf8(body);
+  let count = 0;
+  let output;
+  plugin.context.$http.streamRequest = request => {
+    setTimeout(() => {
+      for (const byte of bytes) request.streamHandler({ rawData: rawData([byte]), text: '' });
+      const final = { response: { statusCode: 200, MIMEType: 'audio/pcm' } };
+      request.handler(final);
+      request.handler(final);
+    }, 5);
+  };
+  plugin.context.tts({ text: 'hello' }, value => { count++; output = value; });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(count, 1);
+  assert.match(assertError(output, 'api').message, /异步出错/);
+});
+
+test('completes asynchronous request fallback only once after late callbacks', async () => {
+  const plugin = loadPlugin({}, undefined, { streaming: false });
+  let count = 0;
+  let output;
+  plugin.context.$http.request = request => {
+    setTimeout(() => request.handler(mp3Response()), 5);
+    setTimeout(() => request.handler({ error: { message: 'late error' } }), 10);
+  };
+  plugin.context.tts({ text: 'hello' }, value => { count++; output = value; });
+  await new Promise(resolve => setTimeout(resolve, 30));
+  assert.equal(count, 1);
+  assert.ok(output.result);
+});
+
+test('appcast verification retries transient failures but not missing assets', async () => {
+  const { checkedFetch } = require('../scripts/verify-appcast');
+  let attempts = 0;
+  const result = await checkedFetch('https://example.test/asset', {}, {
+    retryDelayMs: 1,
+    fetchImpl: async () => { attempts++; return attempts === 1 ? new Response('busy', { status: 503 }) : new Response('ok'); }
+  });
+  assert.equal(attempts, 2);
+  assert.equal(result.bytes.toString(), 'ok');
+  attempts = 0;
+  await assert.rejects(checkedFetch('https://example.test/missing', {}, {
+    retryDelayMs: 1,
+    fetchImpl: async () => { attempts++; return new Response('missing', { status: 404 }); }
+  }), /HTTP 404/);
+  assert.equal(attempts, 1);
+});
+
+test('appcast deadlines cover both headers and a stalled response body', async () => {
+  const { checkedFetch } = require('../scripts/verify-appcast');
+  let signal;
+  await assert.rejects(checkedFetch('https://example.test/no-headers', {}, {
+    attempts: 1, timeoutMs: 20,
+    fetchImpl: (url, options) => { signal = options.signal; return new Promise(() => {}); }
+  }), /timed out/);
+  assert.equal(signal.aborted, true);
+  let cancelled = false;
+  await assert.rejects(checkedFetch('https://example.test/stalled-body', {}, {
+    attempts: 1, timeoutMs: 20,
+    fetchImpl: async () => new Response(new ReadableStream({
+      start(controller) { controller.enqueue(new Uint8Array([1, 2])); },
+      cancel() { cancelled = true; }
+    }))
+  }), /timed out/);
+  assert.equal(cancelled, true);
+});
+
+test('appcast download limits cancel oversized bodies before unbounded buffering', async () => {
+  const { checkedFetch } = require('../scripts/verify-appcast');
+  let cancelled = false;
+  let attempts = 0;
+  await assert.rejects(checkedFetch('https://example.test/large', {}, {
+    maximumBytes: 4,
+    fetchImpl: async () => {
+      attempts++;
+      return new Response(new ReadableStream({
+        start(controller) { controller.enqueue(new Uint8Array(8)); },
+        cancel() { cancelled = true; }
+      }));
+    }
+  }), /exceeds/);
+  assert.equal(cancelled, true);
+  assert.equal(attempts, 1);
+  await assert.rejects(checkedFetch('https://example.test/declared-large', {}, {
+    maximumBytes: 4,
+    fetchImpl: async () => new Response('bytes', { headers: { 'content-length': '100' } })
+  }), /exceeds/);
+});
+
+test('appcast asset URLs reject credentials, queries and fragments', () => {
+  const { parseReleaseAssetUrl } = require('../scripts/verify-appcast');
+  const url = 'https://github.com/poyih/bob-plugin-openai-tts/releases/download/v1.5.1/openai-tts-1.5.1.bobplugin';
+  assert.equal(parseReleaseAssetUrl(url).version, '1.5.1');
+  for (const invalid of [url + '?token=hidden', url + '#fragment', url.replace('github.com', 'name:password@github.com')]) assert.throws(() => parseReleaseAssetUrl(invalid));
+});
+
+test('rejects Chinese JSON errors in PCM requests with generic binary MIME types', () => {
+  let body = JSON.stringify({ error: { message: '出错'.repeat(200) } });
+  if (Buffer.byteLength(body) % 2) body += ' ';
+  for (const mime of ['application/octet-stream', 'binary/octet-stream', 'application/binary', '']) {
+    for (const streaming of [true, false]) {
+      const plugin = loadPlugin({ responseFormat: 'pcm' }, () => response(200, mime, utf8(body), rawData(utf8(body))), { streaming });
+      assert.match(assertError(invokeTts(plugin, 'hello'), 'api').message, /出错/);
     }
   }
 });

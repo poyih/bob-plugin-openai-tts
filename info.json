@@ -1,6 +1,6 @@
 {
   "identifier": "bob-plugin-openai-tts",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "category": "tts",
   "name": "OpenAI TTS",
   "summary": "使用 OpenAI / OpenRouter 兼容 TTS API 进行语音合成。",
@@ -61,10 +61,10 @@
       "type": "text",
       "title": "Custom Model ID",
       "defaultValue": "",
-      "desc": "可选。用于填写 OpenRouter 或其他兼容服务的完整模型 ID，例如 openai/gpt-4o-mini-tts-2025-12-15。填写后会覆盖上方 Model 预设。",
+      "desc": "可选。填写后覆盖 Model 预设。OpenRouter 请填写当前模型列表中的完整 ID，例如 mistralai/voxtral-mini-tts-2603；不同模型需要匹配各自的音色和格式。",
       "textConfig": {
         "type": "visible",
-        "placeholderText": "openai/gpt-4o-mini-tts-2025-12-15"
+        "placeholderText": "mistralai/voxtral-mini-tts-2603"
       }
     },
     {
@@ -115,7 +115,7 @@
       "desc": "可选。覆盖上方 Voice 预设。非 OpenRouter 地址下，voice_... ID 会作为 OpenAI voice 对象发送（需具备相应资格）；OpenRouter 地址下始终按模型支持的音色字符串发送。",
       "textConfig": {
         "type": "visible",
-        "placeholderText": "voice_123abc or provider voice name"
+        "placeholderText": "voice_123abc or en_paul_neutral"
       }
     },
     {
@@ -140,7 +140,7 @@
       "identifier": "responseFormat",
       "type": "menu",
       "title": "Audio Format",
-      "desc": "OpenAI supports all six formats; AAC validation accepts ADTS and MP4/M4A containers (not ADIF). OpenRouter only supports MP3 and PCM, so other selections auto-fallback to MP3. Headerless PCM is wrapped as a 24 kHz, mono, 16-bit WAV for Bob playback.",
+      "desc": "OpenAI supports all six formats. OpenRouter accepts MP3/PCM, with model-specific limits (Voxtral TTS uses MP3). PCM responses use their rate/channels metadata; known OpenAI and MAI-Voice models default to 24 kHz mono. Unknown PCM metadata is rejected; use MP3 instead.",
       "defaultValue": "mp3",
       "menuValues": [
         { "title": "MP3 (default)", "value": "mp3" },
@@ -156,6 +156,7 @@
       "type": "text",
       "title": "Instructions",
       "defaultValue": "",
+      "desc": "仅用于 gpt-4o-mini-tts 系列。文本与 Instructions 合计采用 2000 token 的保守输入预算，离线检查；超限时请缩短或按句、段落分段输入。",
       "textConfig": {
         "type": "visible",
         "height": 80,

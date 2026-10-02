@@ -44,7 +44,7 @@ trap cleanup EXIT INT TERM
 mkdir -p "${OUTPUT_DIR}"
 rm -f "${OUTPUT_FILE}"
 cp "${REPO_ROOT}/info.json" "${BUILD_TMP_DIR}/info.json"
-cp "${REPO_ROOT}/main.js" "${BUILD_TMP_DIR}/main.js"
+"${NODE_BIN}" "${REPO_ROOT}/scripts/bundle.js" "${BUILD_TMP_DIR}/main.js"
 cp "${REPO_ROOT}/LICENSE" "${BUILD_TMP_DIR}/LICENSE"
 chmod 0644 "${BUILD_TMP_DIR}/info.json" "${BUILD_TMP_DIR}/main.js" "${BUILD_TMP_DIR}/LICENSE"
 export LC_ALL=C
