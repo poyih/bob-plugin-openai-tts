@@ -2,6 +2,14 @@
   "identifier": "bob-plugin-openai-tts",
   "versions": [
     {
+      "version": "1.5.2",
+      "desc": "修复 PCM 采样率和声道封装、跨分块 JSON 错误识别；完善音频校验、自定义模型参数和 mini 输入检查；更新 OpenRouter 配置说明并增强发布资产核验。",
+      "sha256": "69deda98b9403aec044650a0743e504b7342aed9fa8bd58d85d4f36b94c4e394",
+      "url": "https://github.com/poyih/bob-plugin-openai-tts/releases/download/v1.5.2/openai-tts-1.5.2.bobplugin",
+      "minBobVersion": "1.8.0",
+      "timestamp": 1790911668000
+    },
+    {
       "version": "1.5.1",
       "desc": "Speed 档位扩展至 OpenAI 官方 0.25x–4.0x 范围，新增 0.25x、3.0x、4.0x（仅对 tts-1 / tts-1-hd 生效）；新增按标签触发的 GitHub Release 工作流。",
       "sha256": "e4a2052042ac00b12a8ffeb69396c8d10aca5b219ef605e9c12ad7a4c56e8edc",
