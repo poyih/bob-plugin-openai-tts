@@ -2,6 +2,14 @@
   "identifier": "bob-plugin-openai-tts",
   "versions": [
     {
+      "version": "1.6.0",
+      "desc": "新增 OpenAI Realtime WebSocket 语音合成及迁移说明，新安装默认使用 gpt-realtime-2.1-mini，保留已有配置；修复流式 WAV 未知长度文件头、Instructions 字符上限和 WebSocket 错误脱敏。",
+      "sha256": "fd9528ab659f635fa0adc8edf3d78a83e0a0c359a8e74563169d5b425ff82738",
+      "url": "https://github.com/poyih/bob-plugin-openai-tts/releases/download/v1.6.0/openai-tts-1.6.0.bobplugin",
+      "minBobVersion": "1.8.0",
+      "timestamp": 1792303408000
+    },
+    {
       "version": "1.5.2",
       "desc": "修复 PCM 采样率和声道封装、跨分块 JSON 错误识别；完善音频校验、自定义模型参数和 mini 输入检查；更新 OpenRouter 配置说明并增强发布资产核验。",
       "sha256": "69deda98b9403aec044650a0743e504b7342aed9fa8bd58d85d4f36b94c4e394",
