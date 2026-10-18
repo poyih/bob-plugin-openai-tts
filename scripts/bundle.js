@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const crypto = require('node:crypto');
 
 const ROOT = path.resolve(__dirname, '..');
-const SOURCES = ['src/endpoints.js', 'src/models.js', 'src/tokenizer.js', 'src/transport.js', 'src/binary.js', 'src/pcm.js', 'src/audio.js', 'src/errors.js', 'main.js'];
+const SOURCES = ['src/endpoints.js', 'src/models.js', 'src/tokenizer.js', 'src/transport.js', 'src/realtime.js', 'src/binary.js', 'src/pcm.js', 'src/audio.js', 'src/errors.js', 'main.js'];
 
 function bundlePlugin() {
   const bytes = fs.readFileSync(path.join(ROOT, 'vendor/o200k_base.tiktoken'));

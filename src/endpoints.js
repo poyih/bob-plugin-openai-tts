@@ -1,6 +1,6 @@
 // endpoints: bundled with main.js for the Bob JavaScriptCore runtime.
 
-function parseApiEndpoint(value) {
+function parseApiEndpoint(value, realtime) {
     var rawValue = value == null ? '' : String(value);
     if (!rawValue.trim()) {
         rawValue = 'https://api.openai.com';
@@ -11,6 +11,7 @@ function parseApiEndpoint(value) {
     }
 
     var base = rawValue.trim();
+    if (realtime) base = base.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://');
     if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(base)) {
         base = 'https://' + base;
     }
@@ -45,7 +46,7 @@ function parseApiEndpoint(value) {
 
     var hostname = hostResult.hostname;
     var openRouter = hostname === 'openrouter.ai' || endsWith(hostname, '.openrouter.ai');
-    var normalizedPath = normalizeApiPath(path, openRouter);
+    var normalizedPath = realtime ? normalizeRealtimeApiPath(path) : normalizeApiPath(path, openRouter);
     var normalizedAuthority = hostResult.isIpv6 ? '[' + hostname + ']' : hostname;
     if (hostResult.port) {
         normalizedAuthority += ':' + hostResult.port;
@@ -136,6 +137,15 @@ function normalizeApiPath(path, openRouter) {
     return normalized + '/v1/audio/speech';
 }
 
+function normalizeRealtimeApiPath(path) {
+    var normalized = (path || '').replace(/\/+$/, '');
+    if (/\/realtime$/i.test(normalized)) return normalized;
+    if (/\/audio\/speech$/i.test(normalized)) return normalized.replace(/\/audio\/speech$/i, '/realtime');
+    if (/\/audio$/i.test(normalized)) return normalized.replace(/\/audio$/i, '/realtime');
+    if (/\/v1$/i.test(normalized)) return normalized + '/realtime';
+    return normalized + '/v1/realtime';
+}
+
 function endsWith(value, suffix) {
     return value.slice(-suffix.length) === suffix;
 }
@@ -156,7 +166,7 @@ function isLoopbackHostname(hostname) {
 
 function resolveConfiguredEndpoint() {
     var rawApiUrl = typeof $option === 'undefined' ? '' : $option.apiUrl;
-    return parseApiEndpoint(rawApiUrl);
+    return parseApiEndpoint(rawApiUrl, isRealtimeTtsModel(getModel()));
 }
 
 function isUsingOpenRouter() {
@@ -169,9 +179,25 @@ function getApiUrl() {
     return endpoint.error ? '' : endpoint.url;
 }
 
+function getRealtimeApiUrl() {
+    var endpoint = resolveConfiguredEndpoint();
+    if (endpoint.error) return '';
+    var parts = endpoint.url.split('?');
+    var parameters = parts.length > 1 ? parts.slice(1).join('?').split('&') : [];
+    var preserved = [];
+    for (var i = 0; i < parameters.length; i++) {
+        if (!parameters[i]) continue;
+        var name = parameters[i].split('=')[0];
+        try { name = decodeURIComponent(name.replace(/\+/g, ' ')); } catch (ignored) {}
+        if (name.toLowerCase() !== 'model') preserved.push(parameters[i]);
+    }
+    preserved.push('model=' + encodeURIComponent(getModel().replace(/^openai\//, '')));
+    return parts[0].replace(/^https:/, 'wss:').replace(/^http:/, 'ws:') + '?' + preserved.join('&');
+}
+
 function clampFormat(format) {
     var capabilities = getModelCapabilities(getModel());
-    if (capabilities.formats && capabilities.formats.indexOf(format) === -1) return 'mp3';
+    if (capabilities.formats && capabilities.formats.indexOf(format) === -1) return capabilities.formats[0];
     if (isUsingOpenRouter() && format !== 'mp3' && format !== 'pcm') return 'mp3';
     return format;
 }

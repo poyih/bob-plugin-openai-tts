@@ -1049,6 +1049,12 @@ test('rejects Chinese JSON errors in PCM requests with generic binary MIME types
   }
 });
 
+const regressionHelpers = { test, assert, loadPlugin, invokeTts, invokeValidate, assertError,
+  response, rawData, utf8, makeWavFile, VALID_WAV_BYTES, fs, path, REPO_ROOT };
+require('./wav-streaming-tests')(regressionHelpers);
+require('./model-validation-tests')(regressionHelpers);
+require('./realtime-tests')(regressionHelpers);
+
 (async () => {
   let failures = 0;
   for (const item of tests) {

@@ -14,12 +14,21 @@ function isMiniTtsModel(model) {
     return /^(?:openai\/)?gpt-4o-mini-tts(?:-\d{4}-\d{2}-\d{2})?$/.test(model || '');
 }
 
+function isRealtimeTtsModel(model) {
+    return /^(?:openai\/)?gpt-realtime-2\.1(?:-mini)?(?:-\d{4}-\d{2}-\d{2})?$/.test(model || '');
+}
+
+function getRealtimeVoices() {
+    return ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'];
+}
+
 function getVoice() {
     var customVoice = readOption('customVoice');
     if (customVoice) {
         return customVoice;
     }
     var model = getModel();
+    if (isRealtimeTtsModel(model)) return readOption('voiceRealtime') || 'marin';
     return isMiniTtsModel(model) ? readOption('voiceMini') : readOption('voice');
 }
 
@@ -90,6 +99,14 @@ function validateOptions() {
         };
     }
     var capabilities = getModelCapabilities(getModel());
+    if (isRealtimeTtsModel(getModel())) {
+        if (endpoint.isOpenRouter) {
+            return { type: 'param', message: 'Realtime 模型需要 OpenAI Realtime WebSocket 接口。请使用 OpenAI 地址或支持 Realtime 的代理；OpenRouter 请另选 Speech 模型。' };
+        }
+        if (!readOption('customVoice') && getRealtimeVoices().indexOf(getVoice()) === -1) {
+            return { type: 'param', message: '请选择有效的 Realtime 音色，或填写 Custom Voice ID。' };
+        }
+    }
     if (capabilities.speed) {
         var speed = getConfiguredSpeed();
         if (!isFinite(speed) || speed < capabilities.speed.minimum || speed > capabilities.speed.maximum) {
@@ -110,13 +127,20 @@ function isTrueOption(name) {
 
 function getModelCapabilities(model) {
     var id = String(model || '').replace(/^openai\//, '');
-    var capabilities = { maxCharacters: MAX_TEXT_LENGTH, maxTokens: 0, speed: null, instructions: false, pcm: null, formats: null };
-    if (id === 'tts-1' || id === 'tts-1-hd') {
+    var capabilities = { maxCharacters: MAX_TEXT_LENGTH, maxTokens: 0, maxInstructionCharacters: 0, speed: null, instructions: false, pcm: null, formats: null };
+    if (isRealtimeTtsModel(model)) {
+        capabilities.speed = { minimum: 0.25, maximum: 1.5 };
+        capabilities.instructions = true;
+        capabilities.maxInstructionCharacters = 4096;
+        capabilities.pcm = { sampleRate: 24000, channels: 1, bitsPerSample: 16 };
+        capabilities.formats = ['pcm'];
+    } else if (id === 'tts-1' || id === 'tts-1-hd') {
         capabilities.speed = { minimum: 0.25, maximum: 4.0 };
         capabilities.pcm = { sampleRate: 24000, channels: 1, bitsPerSample: 16 };
     } else if (isMiniTtsModel(model)) {
         capabilities.maxTokens = 2000;
         capabilities.instructions = true;
+        capabilities.maxInstructionCharacters = 4096;
         capabilities.pcm = { sampleRate: 24000, channels: 1, bitsPerSample: 16 };
     } else if (isUsingOpenRouter() && /^microsoft\/mai-voice-2(?:\.1)?(?:-flash)?$/.test(model)) {
         capabilities.pcm = { sampleRate: 24000, channels: 1, bitsPerSample: 16 };
@@ -136,8 +160,13 @@ function validateInput(text) {
     if (textLength > capabilities.maxCharacters) {
         return { type: 'param', message: '文本超出 ' + capabilities.maxCharacters + ' 字符限制（当前 ' + textLength + ' 字符），请按句或段落分段输入。' };
     }
+    if (capabilities.instructions && capabilities.maxInstructionCharacters) {
+        var instructionsLength = countCodePoints(readOption('instructions'));
+        if (instructionsLength > capabilities.maxInstructionCharacters) {
+            return { type: 'param', message: 'Instructions 超出 ' + capabilities.maxInstructionCharacters + ' 字符限制（当前 ' + instructionsLength + ' 字符），请缩短后再试。' };
+        }
+    }
     if (capabilities.maxTokens) {
-        if (countCodePoints(readOption('instructions')) > 16384) return { type: 'param', message: 'Instructions 过长，请缩短后再试。' };
         try {
             var tokenCount = countInputTokens(text, capabilities.maxTokens);
             if (capabilities.instructions) tokenCount += countInputTokens(readOption('instructions'), capabilities.maxTokens);

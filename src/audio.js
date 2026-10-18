@@ -50,7 +50,12 @@ function processAudioResponse(resp, format) {
 
     var mimeType = getMimeType(response);
     var explicitPcm = format === 'pcm' && isPcmMimeType(mimeType);
-    var rawIsWav = format === 'pcm' && !explicitPcm && isCompleteWavData(resp.rawData, rawLength);
+    var wavInfo = (format === 'wav' || (format === 'pcm' && !explicitPcm))
+        ? inspectWavData(resp.rawData, rawLength) : null;
+    var rawIsWav = format === 'pcm' && !explicitPcm && !!wavInfo;
+    if (format === 'pcm' && !explicitPcm && !rawIsWav && looksLikeWavBytes(rawPrefix)) {
+        return { error: invalidPayloadError(resp, 'TTS 服务返回的 WAV 文件头或采样数据无效。') };
+    }
     if (!isMimeTypeCompatibleWithFormat(mimeType, format, rawIsWav)) {
         return {
             error: invalidPayloadError(
@@ -118,6 +123,14 @@ function processAudioResponse(resp, format) {
     }
     if (decodedLength > MAX_AUDIO_BYTES) {
         return { error: audioTooLargeError(decodedLength) };
+    }
+    if (wavInfo && wavInfo.patches.length) {
+        try {
+            audioBase64 = normalizeWavBase64(audioBase64, wavInfo.patches);
+        } catch (e) {
+            return { error: { type: 'api', message: 'WAV 音频文件头修复失败。' } };
+        }
+        if (!audioBase64) return { error: { type: 'api', message: 'WAV 音频文件头修复失败。' } };
     }
 
     return { base64: audioBase64 };
@@ -359,37 +372,97 @@ function isCompleteMp4Data(rawData, prefix, totalLength) {
 }
 
 function isCompleteWavData(rawData, totalLength) {
-    if (totalLength < 46) return false;
+    return !!inspectWavData(rawData, totalLength);
+}
+
+function inspectWavData(rawData, totalLength) {
+    if (totalLength < 46 || totalLength > MAX_AUDIO_BYTES) return null;
     var header = readAudioBytes(rawData, null, 0, 12);
-    if (header.length < 12 || !looksLikeWavBytes(header)) return false;
-    var riffEnd = readUint32LEValue(header, 4) + 8;
-    if (riffEnd !== totalLength) return false;
+    if (header.length < 12 || !looksLikeWavBytes(header)) return null;
+    var declaredRiffLength = readUint32LEValue(header, 4);
+    var unknownRiffLength = declaredRiffLength === 0xffffffff;
+    var riffEnd = unknownRiffLength ? totalLength : declaredRiffLength + 8;
+    if (riffEnd !== totalLength) return null;
+    var patches = unknownRiffLength ? [{ offset: 4, value: totalLength - 8 }] : [];
 
     var offset = 12;
-    var sawFormat = false;
+    var specification = null;
     var sawData = false;
     for (var count = 0; count < 128 && offset + 8 <= riffEnd; count++) {
         var chunkHeader = readAudioBytes(rawData, null, offset, 8);
-        if (chunkHeader.length < 8) return false;
+        if (chunkHeader.length < 8) return null;
         var chunkId = String.fromCharCode(chunkHeader[0], chunkHeader[1], chunkHeader[2], chunkHeader[3]);
         var chunkLength = readUint32LEValue(chunkHeader, 4);
         var dataStart = offset + 8;
+        var unknownDataLength = chunkLength === 0xffffffff;
+        if (unknownDataLength) {
+            // Streaming WAV uses unknown sizes only for RIFF and the final PCM data
+            // chunk. Never treat an unknown metadata chunk as audio or skip it.
+            if (chunkId !== 'data' || !specification || !specification.pcm) return null;
+            chunkLength = riffEnd - dataStart;
+            patches.push({ offset: offset + 4, value: chunkLength });
+        }
         var nextOffset = dataStart + chunkLength + (chunkLength & 1);
-        if (nextOffset > riffEnd || nextOffset <= offset) return false;
+        if (nextOffset > riffEnd || nextOffset <= offset) return null;
         if (chunkId === 'fmt ') {
-            if (chunkLength < 16) return false;
-            var format = readAudioBytes(rawData, null, dataStart, 16);
-            if (format.length < 16 || readUint16LEValue(format, 0) === 0 ||
-                readUint16LEValue(format, 2) === 0 || readUint32LEValue(format, 4) === 0 ||
-                readUint16LEValue(format, 12) === 0) return false;
-            sawFormat = true;
+            if (specification || sawData || chunkLength < 16) return null;
+            specification = inspectWavFormat(rawData, dataStart, chunkLength);
+            if (!specification) return null;
         } else if (chunkId === 'data') {
-            if (chunkLength === 0) return false;
+            if (!specification || sawData || chunkLength === 0 ||
+                (specification.pcm && chunkLength % specification.blockAlign !== 0)) return null;
             sawData = true;
         }
         offset = nextOffset;
     }
-    return sawFormat && sawData && offset === riffEnd;
+    return specification && sawData && offset === riffEnd ? { patches: patches } : null;
+}
+
+function inspectWavFormat(rawData, offset, length) {
+    var bytes = readAudioBytes(rawData, null, offset, Math.min(length, 40));
+    if (bytes.length < 16) return null;
+    var codec = readUint16LEValue(bytes, 0);
+    var channels = readUint16LEValue(bytes, 2);
+    var sampleRate = readUint32LEValue(bytes, 4);
+    var byteRate = readUint32LEValue(bytes, 8);
+    var blockAlign = readUint16LEValue(bytes, 12);
+    var bitsPerSample = readUint16LEValue(bytes, 14);
+    if (!codec || !channels || !sampleRate || !blockAlign) return null;
+    if (length > 16 && (length < 18 || readUint16LEValue(bytes, 16) > length - 18)) return null;
+    if (codec === 0xfffe) {
+        if (length < 40 || readUint16LEValue(bytes, 16) < 22) return null;
+        // WAVE_FORMAT_EXTENSIBLE stores its PCM/float subtype in a GUID.
+        var standardGuidTail = [0, 0, 0, 0, 16, 0, 128, 0, 0, 170, 0, 56, 155, 113];
+        for (var i = 0; i < standardGuidTail.length; i++) {
+            if (bytes[26 + i] !== standardGuidTail[i]) return null;
+        }
+        codec = readUint16LEValue(bytes, 24);
+        var validBits = readUint16LEValue(bytes, 18);
+        if (!validBits || validBits > bitsPerSample) return null;
+    }
+    var pcm = codec === 1 || codec === 3;
+    if (pcm && (!bitsPerSample || bitsPerSample % 8 !== 0 ||
+        blockAlign !== channels * bitsPerSample / 8 || byteRate !== sampleRate * blockAlign ||
+        (codec === 3 && bitsPerSample !== 32 && bitsPerSample !== 64))) return null;
+    return { pcm: pcm, blockAlign: blockAlign };
+}
+
+function normalizeWavBase64(value, patches) {
+    var parts = [];
+    var cursor = 0;
+    for (var i = 0; i < patches.length; i++) {
+        var patch = patches[i];
+        var byteStart = Math.floor(patch.offset / 3) * 3;
+        var start = byteStart / 3 * 4;
+        var end = Math.ceil((patch.offset + 4) / 3) * 4;
+        var bytes = decodeBase64(value.slice(start, end));
+        if (!bytes || bytes.length < patch.offset - byteStart + 4 || start < cursor) return '';
+        writeUint32LE(bytes, patch.offset - byteStart, patch.value);
+        parts.push(value.slice(cursor, start), encodeBase64(bytes));
+        cursor = end;
+    }
+    parts.push(value.slice(cursor));
+    return parts.join('');
 }
 
 function calculateFlacCrc8(bytes, length) {

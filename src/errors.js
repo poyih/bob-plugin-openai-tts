@@ -141,7 +141,7 @@ function sanitizeMessage(value) {
     message = message.replace(/authorization\s*:\s*bearer\s+[^\s,;"']+/ig, '[REDACTED]');
     message = message.replace(/\bbearer\s+(?:\[redacted\]|[a-z0-9._~+\/=\-]{8,})/ig, '[REDACTED]');
     message = message.replace(/\bsk-[a-z0-9_-]{4,}\b/ig, '[REDACTED]');
-    message = message.replace(/(https?:\/\/)[^\/@\s:]+:[^\/@\s]+@/ig, '$1[REDACTED]@');
+    message = message.replace(/((?:https?|wss?):\/\/)[^\/@\s:]+:[^\/@\s]+@/ig, '$1[REDACTED]@');
     message = message.replace(/[\u0000-\u001f\u007f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, ' ');
     message = message.replace(/ {2,}/g, ' ').trim();
     if (message.length > 500) {

@@ -26,14 +26,14 @@ function pluginTimeoutInterval() {
     return PLUGIN_TIMEOUT_INTERVAL;
 }
 
-function pluginValidate(completion) {
-    var error = validateOptions() || validateInput('hi');
-    if (error) {
-        completion({ error: error });
-        return;
-    }
+function getConfiguredAudioFormat() {
+    return isRealtimeTtsModel(getModel()) ? 'pcm' : clampFormat(readOption('responseFormat') || 'mp3');
+}
 
-    var format = clampFormat(readOption('responseFormat') || 'mp3');
+function requestSpeech(text, timeout, completion) {
+    if (isRealtimeTtsModel(getModel())) {
+        return performRealtimeSpeechRequest(text, timeout, completion);
+    }
     performAudioRequest({
         method: 'POST',
         url: getApiUrl(),
@@ -41,9 +41,19 @@ function pluginValidate(completion) {
             Authorization: 'Bearer ' + readOption('apiKey'),
             'Content-Type': 'application/json'
         },
-        body: buildRequestBody('hi'),
-        timeout: VALIDATION_REQUEST_TIMEOUT_INTERVAL
-    }, format, function(result) {
+        body: buildRequestBody(text),
+        timeout: timeout
+    }, getConfiguredAudioFormat(), completion);
+}
+
+function pluginValidate(completion) {
+    var error = validateOptions() || validateInput('hi');
+    if (error) {
+        completion({ error: error });
+        return;
+    }
+
+    requestSpeech('hi', VALIDATION_REQUEST_TIMEOUT_INTERVAL, function(result) {
         if (result.error) {
             completion({ error: result.error });
             return;
@@ -73,18 +83,9 @@ function tts(query, completion) {
 
     var model = getModel();
     var voice = getVoice();
-    var format = clampFormat(readOption('responseFormat') || 'mp3');
+    var format = getConfiguredAudioFormat();
 
-    performAudioRequest({
-        method: 'POST',
-        url: getApiUrl(),
-        header: {
-            Authorization: 'Bearer ' + readOption('apiKey'),
-            'Content-Type': 'application/json'
-        },
-        body: buildRequestBody(text),
-        timeout: TTS_REQUEST_TIMEOUT_INTERVAL
-    }, format, function(audioResult) {
+    requestSpeech(text, TTS_REQUEST_TIMEOUT_INTERVAL, function(audioResult) {
         if (audioResult.error) {
             completion({ error: audioResult.error });
             return;

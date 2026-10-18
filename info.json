@@ -1,9 +1,9 @@
 {
   "identifier": "bob-plugin-openai-tts",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "category": "tts",
   "name": "OpenAI TTS",
-  "summary": "使用 OpenAI / OpenRouter 兼容 TTS API 进行语音合成。",
+  "summary": "使用 OpenAI Realtime / Speech 或 OpenRouter 兼容 TTS API 进行语音合成。",
   "icon": "",
   "author": "poyih & Claude",
   "homepage": "https://github.com/poyih/bob-plugin-openai-tts",
@@ -25,7 +25,7 @@
       "type": "text",
       "title": "API URL",
       "defaultValue": "https://api.openai.com",
-      "desc": "自定义 API 地址，用于代理或兼容服务。支持填写域名、/v1 基地址或完整接口地址；OpenRouter 可填写 https://openrouter.ai、https://openrouter.ai/api、https://openrouter.ai/api/v1 或完整 /api/v1/audio/speech 地址。仅建议使用 HTTPS；本机回环地址除外。",
+      "desc": "支持域名、/v1 基地址或完整接口地址。Realtime 模型自动使用 /v1/realtime 的 WSS 连接，也可填写完整 wss:// 地址；Speech 模型使用 /v1/audio/speech。OpenRouter 可填写 https://openrouter.ai 或完整 /api/v1/audio/speech 地址。远程服务默认要求 HTTPS/WSS。",
       "textConfig": {
         "type": "visible",
         "placeholderText": "https://api.openai.com"
@@ -35,7 +35,7 @@
       "identifier": "allowInsecureHttp",
       "type": "menu",
       "title": "Allow insecure remote HTTP",
-      "desc": "危险选项。仅在必须连接不支持 HTTPS 的远程兼容服务时开启；API Key 和待合成文本会以明文传输。本机 localhost/127.0.0.0/8/[::1] 无需开启。",
+      "desc": "危险选项。仅在必须连接不支持 HTTPS/WSS 的远程兼容服务时开启；HTTP/WS 会使 API Key 和文本以明文传输。本机 localhost/127.0.0.0/8/[::1] 无需开启。",
       "defaultValue": "false",
       "menuValues": [
         { "title": "No (recommended)", "value": "false" },
@@ -46,13 +46,15 @@
       "identifier": "model",
       "type": "menu",
       "title": "Model",
-      "desc": "Select a common TTS model, or choose Custom and fill a model ID below. gpt-4o-mini-tts is the newest steerable model; pin the 2025-12-15 snapshot for reproducible voices.",
-      "defaultValue": "tts-1",
+      "desc": "新安装默认使用 gpt-realtime-2.1-mini，经 WebSocket 合成并输出 WAV。OpenAI 已公告旧 tts-1、tts-1-hd 和 mini-tts 快照于 2027-01-06 停服，请提前迁移；已有保存配置不会自动切换。OpenRouter 请使用 Custom Model ID。",
+      "defaultValue": "gpt-realtime-2.1-mini",
       "menuValues": [
-        { "title": "tts-1", "value": "tts-1" },
-        { "title": "tts-1-hd", "value": "tts-1-hd" },
-        { "title": "gpt-4o-mini-tts (latest)", "value": "gpt-4o-mini-tts" },
-        { "title": "gpt-4o-mini-tts-2025-12-15", "value": "gpt-4o-mini-tts-2025-12-15" },
+        { "title": "gpt-realtime-2.1-mini (recommended)", "value": "gpt-realtime-2.1-mini" },
+        { "title": "gpt-realtime-2.1", "value": "gpt-realtime-2.1" },
+        { "title": "tts-1 (OpenAI ends 2027-01-06)", "value": "tts-1" },
+        { "title": "tts-1-hd (OpenAI ends 2027-01-06)", "value": "tts-1-hd" },
+        { "title": "gpt-4o-mini-tts (deprecated)", "value": "gpt-4o-mini-tts" },
+        { "title": "gpt-4o-mini-tts-2025-12-15 (OpenAI ends 2027-01-06)", "value": "gpt-4o-mini-tts-2025-12-15" },
         { "title": "Custom Model ID", "value": "custom" }
       ]
     },
@@ -61,11 +63,30 @@
       "type": "text",
       "title": "Custom Model ID",
       "defaultValue": "",
-      "desc": "可选。填写后覆盖 Model 预设。OpenRouter 请填写当前模型列表中的完整 ID，例如 mistralai/voxtral-mini-tts-2603；不同模型需要匹配各自的音色和格式。",
+      "desc": "可选。填写后覆盖 Model 预设。迁移到 Realtime 时请清空旧的自定义模型值。OpenRouter 请填写当前模型列表中的完整 ID，例如 mistralai/voxtral-mini-tts-2603；不同模型需要匹配各自的音色和格式。",
       "textConfig": {
         "type": "visible",
         "placeholderText": "mistralai/voxtral-mini-tts-2603"
       }
+    },
+    {
+      "identifier": "voiceRealtime",
+      "type": "menu",
+      "title": "Voice (Realtime)",
+      "desc": "用于 gpt-realtime-2.1 / mini 系列。marin 和 cedar 为推荐音色；Custom Voice ID 可覆盖此选项。",
+      "defaultValue": "marin",
+      "menuValues": [
+        { "title": "alloy", "value": "alloy" },
+        { "title": "ash", "value": "ash" },
+        { "title": "ballad", "value": "ballad" },
+        { "title": "cedar (recommended)", "value": "cedar" },
+        { "title": "coral", "value": "coral" },
+        { "title": "echo", "value": "echo" },
+        { "title": "marin (recommended)", "value": "marin" },
+        { "title": "sage", "value": "sage" },
+        { "title": "shimmer", "value": "shimmer" },
+        { "title": "verse", "value": "verse" }
+      ]
     },
     {
       "identifier": "voice",
@@ -122,7 +143,7 @@
       "identifier": "speed",
       "type": "menu",
       "title": "Speed",
-      "desc": "Only applies to tts-1 / tts-1-hd. gpt-4o-mini-tts does not use the speed parameter; control pacing via Instructions instead.",
+      "desc": "Realtime 支持 0.25x–1.5x；tts-1 / tts-1-hd 支持 0.25x–4.0x。mini-tts 系列请使用 Instructions 控制语速；未知模型不发送未经确认支持的 speed 参数。",
       "defaultValue": "1.0",
       "menuValues": [
         { "title": "0.25x", "value": "0.25" },
@@ -140,7 +161,7 @@
       "identifier": "responseFormat",
       "type": "menu",
       "title": "Audio Format",
-      "desc": "OpenAI supports all six formats. OpenRouter accepts MP3/PCM, with model-specific limits (Voxtral TTS uses MP3). PCM responses use their rate/channels metadata; known OpenAI and MAI-Voice models default to 24 kHz mono. Unknown PCM metadata is rejected; use MP3 instead.",
+      "desc": "Realtime 固定输出 24 kHz 单声道 WAV，此选项仅用于 Speech 模型。OpenAI Speech 支持全部六种格式；OpenRouter 接受 MP3/PCM（Voxtral 使用 MP3）。PCM 根据响应采样率和声道元数据封装为 WAV；未知元数据时请改用 MP3。",
       "defaultValue": "mp3",
       "menuValues": [
         { "title": "MP3 (default)", "value": "mp3" },
@@ -156,11 +177,11 @@
       "type": "text",
       "title": "Instructions",
       "defaultValue": "",
-      "desc": "仅用于 gpt-4o-mini-tts 系列。文本与 Instructions 合计采用 2000 token 的保守输入预算，离线检查；超限时请缩短或按句、段落分段输入。",
+      "desc": "用于 Realtime 和 gpt-4o-mini-tts 系列，最多 4096 个 Unicode 字符。仅设置朗读风格、语气和情感。mini-tts 的文本与 Instructions 还须满足合计 2000 token 的保守预算。",
       "textConfig": {
         "type": "visible",
         "height": 80,
-        "placeholderText": "Control voice style, tone, emotion. Works with gpt-4o-mini-tts snapshots and OpenRouter IDs."
+        "placeholderText": "Speak warmly, clearly, and at a relaxed pace."
       }
     }
   ]
