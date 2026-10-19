@@ -71,12 +71,12 @@ module.exports = function registerRealtimeTests(h) {
       state.emit({ type: 'response.created', response: { id: id || 'resp-test', status: 'in_progress' } });
       return state;
     };
-    state.audio = function(bytes, id) {
-      state.emit({ type: 'response.output_audio.delta', response_id: id || 'resp-test', delta: Buffer.from(bytes || PCM).toString('base64') });
+    state.audio = function(bytes, id, itemId) {
+      state.emit({ type: 'response.output_audio.delta', response_id: id || 'resp-test', item_id: itemId || 'item-test', delta: Buffer.from(bytes || PCM).toString('base64') });
       return state;
     };
-    state.done = function(status, detail, id) {
-      state.emit({ type: 'response.done', response: { id: id || 'resp-test', status: status || 'completed', status_details: detail } });
+    state.done = function(status, detail, id, output) {
+      state.emit({ type: 'response.done', response: { id: id || 'resp-test', status: status || 'completed', status_details: detail, output } });
       return state;
     };
     return state;
@@ -120,6 +120,7 @@ module.exports = function registerRealtimeTests(h) {
     assert.match(request.response.instructions, /Speak calmly/);
     assert.match(request.response.instructions, /verbatim/);
     assert.match(request.response.instructions, /Never answer questions/);
+    assert.match(request.response.instructions, /preamble/);
     state.created().audio().done();
     assertFinished(state);
     assertWav(state.results[0]);
@@ -137,6 +138,41 @@ module.exports = function registerRealtimeTests(h) {
     state.error({ message: 'late error' });
     state.timers[0].handler();
     assertFinished(state);
+  });
+
+  test('Realtime drops spoken commentary preambles and keeps the final reading in order', () => {
+    const output = [
+      { id: 'item-preamble', type: 'message', role: 'assistant', phase: 'commentary' },
+      { id: 'item-final', type: 'message', role: 'assistant', phase: 'final_answer' }
+    ];
+    for (const fallback of [false, true]) {
+      const state = setup();
+      if (fallback) delete state.plugin.context.$data;
+      state.start().configure().created().audio([9, 9, 9, 9], 'resp-test', 'item-preamble');
+      state.audio(PCM.slice(0, 4), 'resp-test', 'item-final').audio(PCM.slice(4), 'resp-test', 'item-final');
+      state.done('completed', undefined, 'resp-test', output);
+      assertFinished(state);
+      assertWav(state.results[0]);
+    }
+    const kept = setup().start().configure().created();
+    kept.audio(PCM.slice(0, 2), 'resp-test', 'item-a').audio([9, 9], 'resp-test', 'item-b').audio(PCM.slice(2), 'resp-test', 'item-c');
+    kept.done('completed', undefined, 'resp-test', [{ id: 'item-a' }, { id: 'item-b', phase: 'commentary' }, { id: 'item-c', phase: 'final_answer' }]);
+    assertFinished(kept);
+    assertWav(kept.results[0]);
+  });
+
+  test('Realtime rejects a response that only speaks commentary and tolerates missing item IDs', () => {
+    const preambleOnly = setup().start().configure().created().audio(PCM, 'resp-test', 'item-preamble');
+    preambleOnly.done('completed', undefined, 'resp-test', [{ id: 'item-preamble', phase: 'commentary' }]);
+    assertFinished(preambleOnly);
+    assert.equal(preambleOnly.results[0].error.type, 'api');
+    assert.match(preambleOnly.results[0].error.message, /提示性语音/);
+    assert.equal(preambleOnly.results[0].base64, undefined);
+    const anonymous = setup().start().configure().created();
+    anonymous.emit({ type: 'response.output_audio.delta', response_id: 'resp-test', delta: Buffer.from(PCM).toString('base64') });
+    anonymous.done('completed', undefined, 'resp-test', [{ id: 'item-preamble', phase: 'commentary' }]);
+    assertFinished(anonymous);
+    assertWav(anonymous.results[0]);
   });
 
   test('Realtime supports custom voice references and a pure JavaScript audio fallback', () => {
@@ -158,7 +194,7 @@ module.exports = function registerRealtimeTests(h) {
         }
       });
     };
-    state.start().configure().created().audio(PCM.slice(0, 4)).audio(PCM.slice(4)).done();
+    state.start().configure().created().audio(PCM.slice(0, 2)).audio(PCM.slice(2, 4)).audio(PCM.slice(4), 'resp-test', 'item-next').done();
     assertFinished(state);
     assertWav(state.results[0]);
   });
