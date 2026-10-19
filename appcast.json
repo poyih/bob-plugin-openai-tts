@@ -2,6 +2,14 @@
   "identifier": "bob-plugin-openai-tts",
   "versions": [
     {
+      "version": "1.7.0",
+      "desc": "Realtime 合成不再朗读模型自带的提示性语音（preamble），只返回朗读内容，仅有提示性语音时给出明确错误；CI 与发布工作流升级到 Node 24 版本的 Action。",
+      "sha256": "9278b7845b14f81e177dca91a98821035008f93ab39bb003a82072270d0c4555",
+      "url": "https://github.com/poyih/bob-plugin-openai-tts/releases/download/v1.7.0/openai-tts-1.7.0.bobplugin",
+      "minBobVersion": "1.8.0",
+      "timestamp": 1792404739000
+    },
+    {
       "version": "1.6.0",
       "desc": "新增 OpenAI Realtime WebSocket 语音合成及迁移说明，新安装默认使用 gpt-realtime-2.1-mini，保留已有配置；修复流式 WAV 未知长度文件头、Instructions 字符上限和 WebSocket 错误脱敏。",
       "sha256": "fd9528ab659f635fa0adc8edf3d78a83e0a0c359a8e74563169d5b425ff82738",
