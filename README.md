@@ -50,7 +50,7 @@ OpenAI 自定义音色仅向符合条件的客户开放。非 OpenRouter 地址�
 
 插件通过 Bob 原生 `$websocket` 建立 OpenAI Realtime GA 会话，确认 PCM 输出配置后，以独立输入请求逐字朗读文本。只在完整成功的 `response.done` 后返回音频；取消、超时、异常或未完成响应会关闭连接并返回错误。音频使用 24 kHz、单声道、16 位小端 PCM，合并后封装为 WAV；此路径忽略 Audio Format 选项。[官方 WebSocket 指南](https://developers.openai.com/api/docs/guides/realtime-websocket)
 
-Realtime 使用对话模型生成朗读，已通过指令限制其回答、翻译或改写输入。迁移时仍应在 Bob 中试听陈述、问题、命令及多语言文本，确认逐字朗读效果；本地协议模拟测试无法衡量模型实际发音与逐字准确性。代理必须转发 Realtime WebSocket 升级连接，普通 Speech HTTP 代理不足以支持该路径。OpenRouter 的 Speech 端点也不能直接使用 Realtime 模型。
+Realtime 使用对话模型生成朗读，已通过指令限制其回答、翻译或改写输入。gpt-realtime-2 系列默认可能先说一段提示性语音（preamble，输出项标记为 `phase: "commentary"`）；插件在指令中禁止这类语音，并在 `response.done` 时丢弃其音频，只返回朗读内容。迁移时仍应在 Bob 中试听陈述、问题、命令及多语言文本，确认逐字朗读效果；本地协议模拟测试无法衡量模型实际发音与逐字准确性。代理必须转发 Realtime WebSocket 升级连接，普通 Speech HTTP 代理不足以支持该路径。OpenRouter 的 Speech 端点也不能直接使用 Realtime 模型。
 
 ## OpenRouter 示例
 
@@ -108,7 +108,7 @@ npm run verify:audio # 需要 FFmpeg；可用 FFMPEG_BIN 指定路径
 
 `main.js` 保留 Bob 入口与模型路由，`src/` 按地址解析、模型与输入检查、HTTP 传输、Realtime WebSocket、二进制、PCM、音频格式和错误处理组织代码。`scripts/bundle.js` 会将这些源码与离线词表合并；构建产物写入 `dist/`，包内仍只有 `info.json`、合并后的 `main.js` 和 `LICENSE`。调试或安装请使用构建后的脚本/安装包。
 
-单元测试加载同一套合并源码，使用本地 HTTP/WebSocket 桩响应、真实音频样本、异步分块与故障场景，以及 tiktoken 0.12.0 生成的多语言计数样例，不调用真实语音 API，也不需要 API Key。回归测试覆盖未知长度 WAV、Instructions 字符与 token 边界、Realtime GA 握手、PCM 分片、超时、取消与单次回调。词表首次用于 mini 模型时才加载；其他模型不会建立 token 查询表。真实服务的账户权限、握手和试听需在 Bob 中另行验证，步骤见 [MIGRATION.md](MIGRATION.md#openai-tts-迁移到-realtime160)。
+单元测试加载同一套合并源码，使用本地 HTTP/WebSocket 桩响应、真实音频样本、异步分块与故障场景，以及 tiktoken 0.12.0 生成的多语言计数样例，不调用真实语音 API，也不需要 API Key。回归测试覆盖未知长度 WAV、Instructions 字符与 token 边界、Realtime GA 握手、PCM 分片、commentary 语音过滤、超时、取消与单次回调。词表首次用于 mini 模型时才加载；其他模型不会建立 token 查询表。真实服务的账户权限、握手和试听需在 Bob 中另行验证，步骤见 [MIGRATION.md](MIGRATION.md#openai-tts-迁移到-realtime160)。
 
 `verify:appcast` 会联网核对每个 GitHub Release 的真实发布时间、资产 URL、大小、SHA-256，以及包内的版本、identifier 与最低 Bob 版本。每次请求的 30 秒超时覆盖响应头和完整下载；临时网络错误、429、5xx 最多尝试 3 次，使用有限退避并遵守短时 Retry-After；404、鉴权失败和超大响应立即失败。下载按流读取并限制大小，不会先无界读取整个响应。
 
